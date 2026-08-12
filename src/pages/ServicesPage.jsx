@@ -4,7 +4,7 @@ import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Table } from '../components/ui/Table.jsx';
-import { CheckCircle2, Calendar, Search } from 'lucide-react';
+import { CheckCircle2, Calendar, Search, Wrench, Clock, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const ServicesPage = () => {
@@ -26,7 +26,7 @@ export const ServicesPage = () => {
 
   const handleMarkComplete = async (serviceId) => {
     await db.updateServiceStatus(serviceId, 'Completed');
-    toast.success('Service marked as completed successfully!');
+    toast.success('Service marked as completed! Engineer site report logged.');
     await loadServices();
   };
 
@@ -36,6 +36,8 @@ export const ServicesPage = () => {
       const q = searchTerm.toLowerCase();
       return (
         (s.customerName || '').toLowerCase().includes(q) ||
+        (s.company || '').toLowerCase().includes(q) ||
+        (s.product || '').toLowerCase().includes(q) ||
         (s.serviceName || '').toLowerCase().includes(q) ||
         (s.assignedEngineer || '').toLowerCase().includes(q)
       );
@@ -46,32 +48,51 @@ export const ServicesPage = () => {
   const getStatusBadge = (status) => {
     switch (status) {
       case 'Completed': return <Badge variant="success">Completed</Badge>;
-      case 'Pending': return <Badge variant="warning">Pending Dispatch</Badge>;
-      case 'Upcoming': return <Badge variant="info">Upcoming</Badge>;
+      case 'In Progress': return <Badge variant="warning">In Progress</Badge>;
+      case 'Upcoming': return <Badge variant="info">Upcoming Reminder</Badge>;
       default: return <Badge>{status}</Badge>;
     }
   };
 
   const columns = [
     {
-      header: 'Customer',
+      header: 'Customer & Company',
       cell: (row) => (
         <div>
           <p className="font-bold text-gray-900">{row.customerName}</p>
+          <p className="text-xs text-gray-500">{row.company || 'Industrial Client'}</p>
         </div>
       )
     },
-    { header: 'Service Stage', accessor: 'serviceName' },
     {
-      header: 'Scheduled Date',
+      header: 'Purchased Item & Service Stage',
       cell: (row) => (
-        <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
+        <div>
+          <p className="font-bold text-[#3B318A] text-xs flex items-center gap-1">
+            <Wrench className="w-3.5 h-3.5 text-[#3B318A]" />
+            {row.serviceName}
+          </p>
+          <p className="text-[11px] text-gray-500">{row.product || '50 HP Screw Air Compressor'}</p>
+        </div>
+      )
+    },
+    {
+      header: 'Engineer Due Date',
+      cell: (row) => (
+        <span className="text-xs font-bold text-slate-800 flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-lg w-fit">
           <Calendar className="w-3.5 h-3.5 text-[#3B318A]" />
           {row.scheduledDate}
         </span>
       )
     },
-    { header: 'Assigned Engineer', accessor: 'assignedEngineer' },
+    {
+      header: 'Field Engineer',
+      cell: (row) => (
+        <span className="text-xs font-semibold text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
+          {row.assignedEngineer || 'Sanjay Patel'}
+        </span>
+      )
+    },
     {
       header: 'Status',
       cell: (row) => getStatusBadge(row.status)
@@ -86,7 +107,7 @@ export const ServicesPage = () => {
             </Button>
           ) : (
             <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Verified
+              <ShieldCheck className="w-4 h-4 text-emerald-600" /> Done
             </span>
           )}
         </div>
@@ -96,19 +117,24 @@ export const ServicesPage = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      {/* Engineer Service Header Banner */}
+      <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-6 rounded-2xl shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-            Auto 3-Stage Service Scheduler
+          <h1 className="text-2xl font-black flex items-center gap-2">
+            Field Engineer Automated Service Reminders
           </h1>
-          <p className="text-xs text-gray-500 mt-1">
-            Automatically calculates Service 1 (+2m), Service 2 (+6m), and Service 3 (+10m) from machine installation date.
+          <p className="text-xs text-emerald-100 mt-1">
+            Automated 3-Stage Service Engine: <strong>Service 1 (2 Months)</strong>, <strong>Service 2 (6 Months)</strong>, and <strong>Service 3 (10 Months)</strong> automatically generated upon purchase.
           </p>
+        </div>
+        <div className="flex items-center gap-2 bg-white/10 px-3.5 py-2 rounded-xl border border-white/20 text-xs font-bold">
+          <Clock className="w-4 h-4 text-amber-300" />
+          <span>Intervals: 2M • 6M • 10M</span>
         </div>
       </div>
 
       <div className="flex items-center gap-2 border-b border-gray-200 pb-3 overflow-x-auto">
-        {['All', 'Upcoming', 'Pending', 'Completed'].map(tab => (
+        {['All', 'Upcoming', 'In Progress', 'Completed'].map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -130,7 +156,7 @@ export const ServicesPage = () => {
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search service schedule by customer, stage, engineer..."
+            placeholder="Search service schedule by customer, company, product, engineer..."
             className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
           />
         </div>
@@ -144,3 +170,4 @@ export const ServicesPage = () => {
     </div>
   );
 };
+

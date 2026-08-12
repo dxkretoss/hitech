@@ -3,15 +3,22 @@ import { supabase, isSupabaseConfigured } from './supabase.js';
 /**
  * Real Supabase Database Adapter Layer
  * Handles async CRUD operations directly on Supabase tables:
- * - leads
- * - customers
- * - future_opportunities
- * - services
+ * - leads (with sales_person_id & sales_person_name)
+ * - customers (with sales_person_name & purchased_product)
+ * - future_opportunities (with sales_person_name)
+ * - services (auto-scheduled 2m, 6m, 10m maintenance)
  * - profiles
  * - notifications
  */
 
 class SupabaseDatabase {
+  // Initial Mock Sales Persons seed if needed
+  initialSalesPersons = [
+    { id: 'S-101', name: 'Vikram Mehta', email: 'sales@hitechair.in' },
+    { id: 'S-102', name: 'Anita Sharma', email: 'anita.sales@hitechair.in' },
+    { id: 'S-103', name: 'Rahul Verma', email: 'rahul.sales@hitechair.in' }
+  ];
+
   // --- LEADS ---
   async getLeads() {
     if (isSupabaseConfigured()) {
@@ -22,7 +29,7 @@ class SupabaseDatabase {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (data && data.length > 0) {
+        if (data) {
           return data.map(l => ({
             id: l.id,
             customerName: l.customer_name,
@@ -32,7 +39,9 @@ class SupabaseDatabase {
             requirement: l.requirement,
             status: l.status || 'New',
             followUpDate: l.follow_up_date || new Date().toISOString().split('T')[0],
-            notes: l.notes || ''
+            notes: l.notes || '',
+            salesPersonId: l.sales_person_id || '',
+            salesPersonName: l.sales_person_name || ''
           }));
         }
       } catch (e) {
@@ -42,8 +51,11 @@ class SupabaseDatabase {
     return this.getLocal('hitech_v2_leads', []);
   }
 
-  async addLead(lead) {
+  async addLead(lead, currentUser = null) {
     const id = `LD-${Date.now().toString().slice(-4)}`;
+    const salesPersonName = lead.salesPersonName || currentUser?.name || 'Vikram Mehta';
+    const salesPersonId = lead.salesPersonId || currentUser?.id || 'S-101';
+
     const newLead = {
       id,
       customer_name: lead.customerName || lead.customer_name,
@@ -53,7 +65,9 @@ class SupabaseDatabase {
       requirement: lead.requirement,
       status: lead.status || 'New',
       follow_up_date: lead.followUpDate || lead.follow_up_date || new Date().toISOString().split('T')[0],
-      notes: lead.notes || ''
+      notes: lead.notes || '',
+      sales_person_id: salesPersonId,
+      sales_person_name: salesPersonName
     };
 
     if (isSupabaseConfigured()) {
@@ -74,11 +88,29 @@ class SupabaseDatabase {
       requirement: newLead.requirement,
       status: newLead.status,
       followUpDate: newLead.follow_up_date,
-      notes: newLead.notes
+      notes: newLead.notes,
+      salesPersonId: salesPersonId,
+      salesPersonName: salesPersonName
     };
 
-    const current = this.getLocal('hitech_v2_leads', []);
+    const current = await this.getLeads();
     this.saveLocal('hitech_v2_leads', [formatted, ...current]);
+
+    // If marked as Future Requirement, also save to Future Opportunities automatically
+    if (lead.status === 'Future Requirement') {
+      await this.addFutureOpportunity({
+        customerName: formatted.customerName,
+        company: formatted.company,
+        phone: formatted.phone,
+        requirement: formatted.requirement,
+        expectedPurchaseMonth: lead.expectedPurchaseMonth || 'After 3 Months',
+        reminderDate: formatted.followUpDate,
+        notes: formatted.notes,
+        salesPersonId: salesPersonId,
+        salesPersonName: salesPersonName
+      });
+    }
+
     return formatted;
   }
 
@@ -93,6 +125,8 @@ class SupabaseDatabase {
         if (updated.requirement) payload.requirement = updated.requirement;
         if (updated.status) payload.status = updated.status;
         if (updated.followUpDate) payload.follow_up_date = updated.followUpDate;
+        if (updated.notes) payload.notes = updated.notes;
+        if (updated.salesPersonName) payload.sales_person_name = updated.salesPersonName;
 
         await supabase.from('leads').update(payload).eq('id', id);
       } catch (e) {
@@ -100,7 +134,7 @@ class SupabaseDatabase {
       }
     }
 
-    const current = this.getLocal('hitech_v2_leads', []);
+    const current = await this.getLeads();
     const updatedList = current.map(l => l.id === id ? { ...l, ...updated } : l);
     this.saveLocal('hitech_v2_leads', updatedList);
   }
@@ -114,12 +148,12 @@ class SupabaseDatabase {
       }
     }
 
-    const current = this.getLocal('hitech_v2_leads', []);
+    const current = await this.getLeads();
     this.saveLocal('hitech_v2_leads', current.filter(l => l.id !== id));
   }
 
-  // Convert Lead to Customer & Auto-Generate 3 Recurring Maintenance Services (+2m, +6m, +10m)
-  async convertLeadToCustomer(leadId) {
+  // Convert Lead to Customer & Auto-Generate 3 Service Reminders (+2m, +6m, +10m)
+  async convertLeadToCustomer(leadId, assignedEngineer = 'Sanjay Patel') {
     const leads = await this.getLeads();
     const lead = leads.find(l => l.id === leadId);
     if (!lead) return null;
@@ -136,8 +170,10 @@ class SupabaseDatabase {
       phone: lead.phone,
       purchased_product: lead.interestedProduct || lead.requirement,
       installation_date: installDate,
-      assigned_engineer: 'Sanjay Patel',
-      address: 'Industrial Area, Gujarat'
+      assigned_engineer: assignedEngineer,
+      address: lead.company ? `${lead.company} Plant, GIDC Estate, Gujarat` : 'GIDC Industrial Area, Surat',
+      sales_person_id: lead.salesPersonId || 'S-101',
+      sales_person_name: lead.salesPersonName || 'Vikram Mehta'
     };
 
     if (isSupabaseConfigured()) {
@@ -155,25 +191,124 @@ class SupabaseDatabase {
       phone: lead.phone,
       purchasedProduct: lead.interestedProduct || lead.requirement,
       installationDate: installDate,
-      assignedEngineer: 'Sanjay Patel',
-      address: 'Industrial Area, Gujarat'
+      assignedEngineer: assignedEngineer,
+      address: newCust.address,
+      salesPersonId: newCust.sales_person_id,
+      salesPersonName: newCust.sales_person_name
     };
 
-    const currentCusts = this.getLocal('hitech_v2_customers', []);
+    const currentCusts = await this.getCustomers();
     this.saveLocal('hitech_v2_customers', [formattedCust, ...currentCusts]);
 
     // Auto-generate 3 recurring services (+2m, +6m, +10m)
-    const today = new Date();
-    const dates = [
-      new Date(today.getFullYear(), today.getMonth() + 2, today.getDate()).toISOString().split('T')[0],
-      new Date(today.getFullYear(), today.getMonth() + 6, today.getDate()).toISOString().split('T')[0],
-      new Date(today.getFullYear(), today.getMonth() + 10, today.getDate()).toISOString().split('T')[0]
-    ];
+    await this.generateThreeServicesForCustomer(formattedCust);
+
+    return formattedCust;
+  }
+
+  // Save Direct Customer Sale (with auto 3 service reminders: +2m, +6m, +10m)
+  async addCustomerSale(saleData, currentUser = null) {
+    const custId = `CUST-${Date.now().toString().slice(-4)}`;
+    const installDate = saleData.installationDate || new Date().toISOString().split('T')[0];
+    const salesPersonName = saleData.salesPersonName || currentUser?.name || 'Vikram Mehta';
+    const salesPersonId = saleData.salesPersonId || currentUser?.id || 'S-101';
+    const engineer = saleData.assignedEngineer || 'Sanjay Patel';
+
+    const newCust = {
+      id: custId,
+      customer_name: saleData.customerName,
+      company: saleData.company,
+      phone: saleData.phone,
+      purchased_product: saleData.purchasedProduct,
+      installation_date: installDate,
+      assigned_engineer: engineer,
+      address: saleData.address || `${saleData.company || saleData.customerName} Site, Gujarat`,
+      sales_person_id: salesPersonId,
+      sales_person_name: salesPersonName
+    };
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('customers').insert([newCust]);
+      } catch (e) {
+        console.error('Supabase insert direct customer error:', e);
+      }
+    }
+
+    const formattedCust = {
+      id: custId,
+      customerName: saleData.customerName,
+      company: saleData.company,
+      phone: saleData.phone,
+      purchasedProduct: saleData.purchasedProduct,
+      installationDate: installDate,
+      assignedEngineer: engineer,
+      address: newCust.address,
+      salesPersonId: salesPersonId,
+      salesPersonName: salesPersonName
+    };
+
+    const currentCusts = await this.getCustomers();
+    this.saveLocal('hitech_v2_customers', [formattedCust, ...currentCusts]);
+
+    // Auto-generate 3 recurring services (+2m, +6m, +10m)
+    await this.generateThreeServicesForCustomer(formattedCust);
+
+    return formattedCust;
+  }
+
+  // Helper to generate 3 services (+2 months, +6 months, +10 months)
+  async generateThreeServicesForCustomer(customer) {
+    const installDate = new Date(customer.installationDate || Date.now());
+
+    // Function to calculate exact future date
+    const addMonths = (date, months) => {
+      const d = new Date(date);
+      d.setMonth(d.getMonth() + months);
+      return d.toISOString().split('T')[0];
+    };
+
+    const date2M = addMonths(installDate, 2);
+    const date6M = addMonths(installDate, 6);
+    const date10M = addMonths(installDate, 10);
 
     const autoServices = [
-      { id: `SRV-${Date.now()}-1`, customer_id: custId, customer_name: lead.customerName, service_name: 'Service 1 (2 Months General Check)', scheduled_date: dates[0], status: 'Upcoming', assigned_engineer: 'Sanjay Patel' },
-      { id: `SRV-${Date.now()}-2`, customer_id: custId, customer_name: lead.customerName, service_name: 'Service 2 (6 Months Maintenance)', scheduled_date: dates[1], status: 'Upcoming', assigned_engineer: 'Sanjay Patel' },
-      { id: `SRV-${Date.now()}-3`, customer_id: custId, customer_name: lead.customerName, service_name: 'Service 3 (10 Months Major AMC)', scheduled_date: dates[2], status: 'Upcoming', assigned_engineer: 'Sanjay Patel' }
+      {
+        id: `SRV-${Date.now()}-1`,
+        customer_id: customer.id,
+        customer_name: customer.customerName,
+        company: customer.company,
+        product: customer.purchasedProduct,
+        service_name: 'Service #1 (2-Month Mandatory Inspection & Oil Check)',
+        scheduled_date: date2M,
+        status: 'Upcoming',
+        assigned_engineer: customer.assignedEngineer || 'Sanjay Patel',
+        notes: 'Inspect filter, check pressure ratio, clear condensate drain.'
+      },
+      {
+        id: `SRV-${Date.now()}-2`,
+        customer_id: customer.id,
+        customer_name: customer.customerName,
+        company: customer.company,
+        product: customer.purchasedProduct,
+        service_name: 'Service #2 (6-Month Mid-Term Preventative Maintenance)',
+        scheduled_date: date6M,
+        status: 'Upcoming',
+        assigned_engineer: customer.assignedEngineer || 'Sanjay Patel',
+        notes: 'Replace air intake filter element, tighten electrical connections.'
+      },
+      {
+        id: `SRV-${Date.now()}-3`,
+        customer_id: customer.id,
+        customer_name: customer.customerName,
+        company: customer.company,
+        product: customer.purchasedProduct,
+        service_name: 'Service #3 (10-Month Annual Overhaul & AMC Renewal)',
+        scheduled_date: date10M,
+        status: 'Upcoming',
+        assigned_engineer: customer.assignedEngineer || 'Sanjay Patel',
+        notes: 'Full system audit, coolant replacement, renew warranty/AMC contract.'
+      }
     ];
 
     if (isSupabaseConfigured()) {
@@ -184,19 +319,22 @@ class SupabaseDatabase {
       }
     }
 
-    const currentServices = this.getLocal('hitech_v2_services', []);
+    const currentServices = await this.getServices();
     const formattedServices = autoServices.map(s => ({
       id: s.id,
       customerId: s.customer_id,
       customerName: s.customer_name,
+      company: s.company,
+      product: s.product,
       serviceName: s.service_name,
       scheduledDate: s.scheduled_date,
       status: s.status,
-      assignedEngineer: s.assigned_engineer
+      assignedEngineer: s.assigned_engineer,
+      notes: s.notes
     }));
-    this.saveLocal('hitech_v2_services', [...formattedServices, ...currentServices]);
 
-    return formattedCust;
+    this.saveLocal('hitech_v2_services', [...formattedServices, ...currentServices]);
+    return formattedServices;
   }
 
   // Save Lead to Future Opportunity Vault
@@ -207,40 +345,17 @@ class SupabaseDatabase {
 
     await this.updateLead(leadId, { status: 'Future Requirement' });
 
-    const oppId = `FO-${Date.now().toString().slice(-4)}`;
-    const newOpp = {
-      id: oppId,
-      customer_name: lead.customerName,
-      company: lead.company,
-      phone: lead.phone,
-      requirement: lead.requirement,
-      expected_purchase_month: expectedMonth || '6 Months Later',
-      reminder_date: reminderDate || new Date().toISOString().split('T')[0],
-      notes: lead.notes || 'Moved from sales lead pipeline.'
-    };
-
-    if (isSupabaseConfigured()) {
-      try {
-        await supabase.from('future_opportunities').insert([newOpp]);
-      } catch (e) {
-        console.error('Supabase insert future opp error:', e);
-      }
-    }
-
-    const formattedOpp = {
-      id: oppId,
+    return await this.addFutureOpportunity({
       customerName: lead.customerName,
       company: lead.company,
       phone: lead.phone,
       requirement: lead.requirement,
       expectedPurchaseMonth: expectedMonth || '6 Months Later',
       reminderDate: reminderDate || new Date().toISOString().split('T')[0],
-      notes: lead.notes || 'Moved from sales lead pipeline.'
-    };
-
-    const currentOpps = this.getLocal('hitech_v2_future_opps', []);
-    this.saveLocal('hitech_v2_future_opps', [formattedOpp, ...currentOpps]);
-    return formattedOpp;
+      notes: lead.notes || 'Client deferred requirement.',
+      salesPersonId: lead.salesPersonId,
+      salesPersonName: lead.salesPersonName
+    });
   }
 
   // --- FUTURE OPPORTUNITIES ---
@@ -262,7 +377,9 @@ class SupabaseDatabase {
             requirement: o.requirement,
             expectedPurchaseMonth: o.expected_purchase_month,
             reminderDate: o.reminder_date,
-            notes: o.notes
+            notes: o.notes,
+            salesPersonId: o.sales_person_id || 'S-101',
+            salesPersonName: o.sales_person_name || 'Vikram Mehta'
           }));
         }
       } catch (e) {
@@ -272,8 +389,11 @@ class SupabaseDatabase {
     return this.getLocal('hitech_v2_future_opps', []);
   }
 
-  async addFutureOpportunity(opp) {
+  async addFutureOpportunity(opp, currentUser = null) {
     const id = `FO-${Date.now().toString().slice(-4)}`;
+    const salesPersonName = opp.salesPersonName || currentUser?.name || 'Vikram Mehta';
+    const salesPersonId = opp.salesPersonId || currentUser?.id || 'S-101';
+
     const newOpp = {
       id,
       customer_name: opp.customerName,
@@ -282,7 +402,9 @@ class SupabaseDatabase {
       requirement: opp.requirement,
       expected_purchase_month: opp.expectedPurchaseMonth || '6 Months Later',
       reminder_date: opp.reminderDate || new Date().toISOString().split('T')[0],
-      notes: opp.notes || ''
+      notes: opp.notes || '',
+      sales_person_id: salesPersonId,
+      sales_person_name: salesPersonName
     };
 
     if (isSupabaseConfigured()) {
@@ -301,10 +423,12 @@ class SupabaseDatabase {
       requirement: opp.requirement,
       expectedPurchaseMonth: newOpp.expected_purchase_month,
       reminderDate: newOpp.reminder_date,
-      notes: newOpp.notes
+      notes: newOpp.notes,
+      salesPersonId: salesPersonId,
+      salesPersonName: salesPersonName
     };
 
-    const current = this.getLocal('hitech_v2_future_opps', []);
+    const current = await this.getFutureOpportunities();
     this.saveLocal('hitech_v2_future_opps', [formatted, ...current]);
     return formatted;
   }
@@ -317,7 +441,7 @@ class SupabaseDatabase {
         console.error('Supabase delete future opp error:', e);
       }
     }
-    const current = this.getLocal('hitech_v2_future_opps', []);
+    const current = await this.getFutureOpportunities();
     this.saveLocal('hitech_v2_future_opps', current.filter(o => o.id !== id));
   }
 
@@ -340,7 +464,9 @@ class SupabaseDatabase {
             purchasedProduct: c.purchased_product,
             installationDate: c.installation_date,
             assignedEngineer: c.assigned_engineer,
-            address: c.address
+            address: c.address,
+            salesPersonId: c.sales_person_id || 'S-101',
+            salesPersonName: c.sales_person_name || 'Vikram Mehta'
           }));
         }
       } catch (e) {
@@ -353,6 +479,22 @@ class SupabaseDatabase {
   async getCustomerById(id) {
     const custs = await this.getCustomers();
     return custs.find(c => c.id === id) || null;
+  }
+
+  async deleteCustomer(id) {
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('customers').delete().eq('id', id);
+        await supabase.from('services').delete().eq('customer_id', id);
+      } catch (e) {
+        console.error('Supabase delete customer error:', e);
+      }
+    }
+    const current = await this.getCustomers();
+    this.saveLocal('hitech_v2_customers', current.filter(c => c.id !== id));
+
+    const services = await this.getServices();
+    this.saveLocal('hitech_v2_services', services.filter(s => s.customerId !== id));
   }
 
   // --- SERVICES ---
@@ -370,10 +512,13 @@ class SupabaseDatabase {
             id: s.id,
             customerId: s.customer_id,
             customerName: s.customer_name,
+            company: s.company,
+            product: s.product,
             serviceName: s.service_name,
             scheduledDate: s.scheduled_date,
             status: s.status,
-            assignedEngineer: s.assigned_engineer
+            assignedEngineer: s.assigned_engineer,
+            notes: s.notes
           }));
         }
       } catch (e) {
@@ -396,7 +541,7 @@ class SupabaseDatabase {
         console.error('Supabase update service status error:', e);
       }
     }
-    const current = this.getLocal('hitech_v2_services', []);
+    const current = await this.getServices();
     this.saveLocal('hitech_v2_services', current.map(s => s.id === serviceId ? { ...s, status: newStatus } : s));
   }
 
@@ -425,10 +570,44 @@ class SupabaseDatabase {
       }
     }
     return [
-      { id: '1', name: 'Vikram Mehta', email: 'sales@hitechair.in', role: 'Sales', status: 'Active', date: '2026-08-01' },
-      { id: '2', name: 'Sanjay Patel', email: 'sanjay.engineer@hitechair.in', role: 'Engineer', status: 'Active', date: '2026-08-03' },
-      { id: '3', name: 'Hi-Tech Super Administrator', email: 'admin@hitechair.in', role: 'Owner', status: 'Active', date: '2026-07-15' }
+      { id: 'S-101', name: 'Vikram Mehta', email: 'sales@hitechair.in', role: 'Sales', status: 'Active', date: '2026-08-01' },
+      { id: 'S-102', name: 'Anita Sharma', email: 'anita.sales@hitechair.in', role: 'Sales', status: 'Active', date: '2026-08-02' },
+      { id: 'E-201', name: 'Sanjay Patel', email: 'sanjay.engineer@hitechair.in', role: 'Engineer', status: 'Active', date: '2026-08-03' },
+      { id: 'A-301', name: 'Hi-Tech Super Administrator', email: 'admin@hitechair.in', role: 'Owner', status: 'Active', date: '2026-07-15' }
     ];
+  }
+
+  // --- ADMIN ANALYTICS & SALES PERSON ATTRIBUTION BREAKDOWN ---
+  async getSalesPerformanceSummary() {
+    const [leads, futureOpps, customers, profiles] = await Promise.all([
+      this.getLeads(),
+      this.getFutureOpportunities(),
+      this.getCustomers(),
+      this.getProfiles()
+    ]);
+
+    const salesReps = profiles.filter(p => p.role === 'Sales');
+
+    // Group leads, future opps, and customers by sales rep name
+    const summary = salesReps.map(rep => {
+      const repLeads = leads.filter(l => l.salesPersonName === rep.name || l.salesPersonId === rep.id);
+      const repFutureOpps = futureOpps.filter(o => o.salesPersonName === rep.name || o.salesPersonId === rep.id);
+      const repCustomers = customers.filter(c => c.salesPersonName === rep.name || c.salesPersonId === rep.id);
+
+      return {
+        id: rep.id,
+        name: rep.name,
+        email: rep.email,
+        totalLeads: repLeads.length,
+        futureOpps: repFutureOpps.length,
+        wonDeals: repCustomers.length,
+        leadsList: repLeads,
+        futureOppsList: repFutureOpps,
+        customersList: repCustomers
+      };
+    });
+
+    return summary;
   }
 
   // --- NOTIFICATIONS ---
@@ -447,9 +626,32 @@ class SupabaseDatabase {
       }
     }
     return this.getLocal('hitech_v2_notifications', [
-      { id: '1', title: 'New Sales Lead Added', message: 'Rajesh Shah (Reliance Textiles) interested in 50HP Compressor.', type: 'info', read: false },
-      { id: '2', title: 'Upcoming Service Dispatch', message: 'AMC Service scheduled for Parikh Plastics tomorrow.', type: 'warning', read: false }
+      { id: '1', title: 'New Sales Lead Added', message: 'Rajesh Shah (Reliance Textiles) logged by Vikram Mehta.', type: 'info', read: false },
+      { id: '2', title: 'Automated 2-Month Service Reminder', message: 'Service #1 due for Surat Diamond Craft (Eng: Sanjay Patel).', type: 'warning', read: false }
     ]);
+  }
+
+  async deleteNotification(id) {
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('notifications').delete().eq('id', id);
+      } catch (e) {
+        console.error('Supabase delete notification error:', e);
+      }
+    }
+    const current = await this.getNotifications();
+    this.saveLocal('hitech_v2_notifications', current.filter(n => n.id !== id));
+  }
+
+  async clearAllNotifications() {
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('notifications').delete().neq('id', '0');
+      } catch (e) {
+        console.error('Supabase clear notifications error:', e);
+      }
+    }
+    this.saveLocal('hitech_v2_notifications', []);
   }
 
   // Helper local storage functions
@@ -472,3 +674,4 @@ class SupabaseDatabase {
 }
 
 export const db = new SupabaseDatabase();
+

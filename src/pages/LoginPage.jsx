@@ -51,6 +51,7 @@ export const LoginPage = () => {
 
         {/* Main Auth Card */}
         <Card className="p-6 space-y-5 shadow-xl border-gray-200">
+
           {confirmationSent ? (
             /* Email Confirmation Screen */
             <div className="text-center space-y-4 py-3">

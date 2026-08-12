@@ -17,7 +17,9 @@ export const Button = ({
     secondary: 'bg-indigo-50 hover:bg-indigo-100 text-[#3B318A]',
     outline: 'border border-gray-300 hover:bg-gray-50 text-gray-700',
     danger: 'bg-red-50 hover:bg-red-100 text-red-600 border border-red-200',
-    success: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm'
+    success: 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm',
+    white: 'bg-white hover:bg-indigo-50 text-[#3B318A] shadow-md font-bold border border-indigo-100',
+    amber: 'bg-amber-400 hover:bg-amber-300 text-gray-950 shadow-md font-bold'
   };
 
   const sizes = {

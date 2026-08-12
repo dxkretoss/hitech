@@ -7,6 +7,7 @@ import { Input, Textarea } from '../components/ui/Input.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Table } from '../components/ui/Table.jsx';
 import { Modal } from '../components/ui/Modal.jsx';
+import { ConfirmModal } from '../components/ui/ConfirmModal.jsx';
 import { Search, Plus, Edit, Trash2, ShieldAlert, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -17,6 +18,9 @@ export const FutureOpportunitiesPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
   const [editingOpp, setEditingOpp] = useState(null);
+
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [oppToDelete, setOppToDelete] = useState(null);
 
   const [formData, setFormData] = useState({
     customerName: '',
@@ -75,10 +79,17 @@ export const FutureOpportunitiesPage = () => {
     setModalOpen(true);
   };
 
-  const handleDelete = async (id) => {
-    if (window.confirm('Delete this future opportunity record?')) {
-      await db.deleteFutureOpportunity(id);
+  const handleOpenDelete = (opp) => {
+    setOppToDelete(opp);
+    setDeleteConfirmOpen(true);
+  };
+
+  const handleConfirmDelete = async () => {
+    if (oppToDelete) {
+      await db.deleteFutureOpportunity(oppToDelete.id);
       toast.success('Opportunity record deleted');
+      setDeleteConfirmOpen(false);
+      setOppToDelete(null);
       await loadOpps();
     }
   };
@@ -139,7 +150,7 @@ export const FutureOpportunitiesPage = () => {
           <button onClick={() => handleOpenEdit(row)} className="p-1.5 text-gray-500 hover:text-indigo-600">
             <Edit className="w-4 h-4" />
           </button>
-          <button onClick={() => handleDelete(row.id)} className="p-1.5 text-gray-500 hover:text-red-600">
+          <button onClick={() => handleOpenDelete(row)} className="p-1.5 text-gray-500 hover:text-red-600">
             <Trash2 className="w-4 h-4" />
           </button>
         </div>
@@ -232,6 +243,28 @@ export const FutureOpportunitiesPage = () => {
           </div>
         </form>
       </Modal>
+      {/* Delete Opportunity Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteConfirmOpen}
+        onClose={() => {
+          setDeleteConfirmOpen(false);
+          setOppToDelete(null);
+        }}
+        onConfirm={handleConfirmDelete}
+        title="Delete Future Opportunity?"
+        description={
+          oppToDelete ? (
+            <span>
+              Are you sure you want to delete the future opportunity record for <strong className="text-gray-900">{oppToDelete.customerName}</strong> ({oppToDelete.company || 'N/A'})?
+            </span>
+          ) : (
+            'Are you sure you want to delete this future opportunity record?'
+          )
+        }
+        confirmText="Yes, Delete Record"
+        cancelText="Cancel"
+        variant="danger"
+      />
     </div>
   );
 };

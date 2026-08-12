@@ -29,16 +29,6 @@ export const Header = ({ onOpenSidebar }) => {
           <span className="text-gray-300">/</span>
           <span className="font-bold text-gray-900">{getPageTitle()}</span>
         </div>
-
-        {/* Global Search Bar */}
-        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-gray-50 border border-gray-200 rounded-xl text-xs text-gray-400 w-56 focus-within:border-[#3B318A] focus-within:bg-white transition-all ml-2">
-          <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-          <input
-            type="text"
-            placeholder="Search CRM..."
-            className="bg-transparent border-none outline-none text-xs text-gray-900 placeholder:text-gray-400 w-full"
-          />
-        </div>
       </div>
 
       <div className="flex items-center gap-3">
