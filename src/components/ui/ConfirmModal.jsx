@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { AlertTriangle, Trash2, HelpCircle, X } from 'lucide-react';
 import { Button } from './Button.jsx';
 
@@ -43,8 +44,8 @@ export const ConfirmModal = ({
   const config = getVariantStyles();
   const IconComponent = config.Icon;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
+  return createPortal(
+    <div className="fixed inset-0 !m-0 top-0 left-0 right-0 bottom-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-fadeIn">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-gray-100 overflow-hidden transform transition-all">
         {/* Header bar with close button */}
         <div className="flex items-center justify-end px-4 pt-3">
@@ -98,6 +99,7 @@ export const ConfirmModal = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

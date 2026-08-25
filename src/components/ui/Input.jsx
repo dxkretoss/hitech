@@ -13,8 +13,9 @@ export const Input = ({
   return (
     <div className="space-y-1.5 w-full">
       {label && (
-        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-          {label} {required && <span className="text-red-500">*</span>}
+        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
+          <span>{label}</span>
+          {required && <span className="text-red-500 ml-1 select-none">*</span>}
         </label>
       )}
       <input
@@ -43,8 +44,9 @@ export const Textarea = ({
   return (
     <div className="space-y-1.5 w-full">
       {label && (
-        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-          {label} {required && <span className="text-red-500">*</span>}
+        <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
+          <span>{label}</span>
+          {required && <span className="text-red-500 ml-1 select-none">*</span>}
         </label>
       )}
       <textarea

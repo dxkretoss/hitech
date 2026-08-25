@@ -63,21 +63,21 @@ export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         {/* Desktop Floating Toggle Button on Sidebar Border Line */}
         <button
           onClick={onToggleCollapse}
-          className="hidden lg:flex items-center justify-center w-6 h-6 rounded-full bg-white border border-gray-200 shadow-md text-gray-500 hover:text-[#3B318A] hover:bg-indigo-50 hover:border-indigo-200 transition-all absolute -right-3 top-5 z-50 cursor-pointer"
+          className="hidden lg:flex items-center justify-center w-6 h-6 rounded-full bg-white border border-gray-200 shadow-md text-gray-500 hover:text-[#3B318A] hover:bg-indigo-50 hover:border-indigo-200 transition-all absolute -right-3 top-5 z-20 cursor-pointer"
           title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
         >
           {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronLeft className="w-3.5 h-3.5" />}
         </button>
 
         {/* Company Header Branding */}
-        <div className="shrink-0 h-16 flex items-center justify-between px-3 border-b border-gray-200 relative">
-          <div className="flex items-center justify-center flex-1 overflow-hidden">
+        <div className="shrink-0 h-16 flex items-center justify-between px-3.5 border-b border-gray-200 relative">
+          <div className="flex items-center justify-center flex-1 overflow-hidden py-1">
             {collapsed ? (
               <div className="w-8 h-8 rounded-xl bg-[#3B318A] text-white flex items-center justify-center font-black text-xs shadow-xs tracking-wider shrink-0">
                 HT
               </div>
             ) : (
-              <img src={logoPng} alt="Hi-Tech Air Technology" className="h-8 w-auto max-w-[160px] object-contain mx-auto" />
+              <img src={logoPng} alt="Hi-Tech Air Technology" className="h-7 w-auto max-w-[155px] object-contain mx-auto" />
             )}
           </div>
 

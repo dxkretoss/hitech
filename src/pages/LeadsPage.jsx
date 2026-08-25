@@ -304,14 +304,14 @@ export const LeadsPage = () => {
       </Card>
 
       {/* Concise Quick Add Lead / Future Requirement Modal */}
-      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingLead ? 'Edit Lead Record' : 'Quick Entry: Lead / Future Requirement'}>
+      <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={editingLead ? 'Edit Lead Record' : 'Quick Entry: Lead / Future Requirement'} maxWidth="max-w-xl">
         <form onSubmit={handleSave} className="space-y-4">
           <div className="bg-indigo-50/70 p-3 rounded-xl border border-indigo-100 text-xs text-[#3B318A] font-semibold flex items-center justify-between">
             <span>Sales Person Tag: <strong>{currentUser?.name || 'Vikram Mehta'}</strong></span>
             <Badge variant="primary">{role}</Badge>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Client / Contact Name"
               name="customerName"
@@ -330,10 +330,10 @@ export const LeadsPage = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5 w-full">
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                Phone Number <span className="text-red-500">*</span>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
+                <span>Phone Number</span> <span className="text-red-500 select-none">*</span>
               </label>
               <ReactPhoneInput
                 country={'in'}
@@ -351,11 +351,11 @@ export const LeadsPage = () => {
             </div>
 
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-700 uppercase">Product Category</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">Product Category</label>
               <select
                 value={formData.interestedProduct}
                 onChange={(e) => setFormData({ ...formData, interestedProduct: e.target.value, requirement: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
+                className="w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
               >
                 <option value="50 HP Screw Air Compressor">50 HP Screw Air Compressor</option>
                 <option value="75 HP VFD Screw Compressor">75 HP VFD Screw Compressor</option>
@@ -375,13 +375,13 @@ export const LeadsPage = () => {
             required
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-700 uppercase">Requirement Type / Status</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">Requirement Type / Status</label>
               <select
                 value={formData.status}
                 onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] font-bold text-[#3B318A]"
+                className="w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] font-bold text-[#3B318A]"
               >
                 <option value="New">Immediate Lead (Active Inquiry)</option>
                 <option value="Future Requirement">Future Requirement (Not Now, Need Later)</option>
@@ -392,11 +392,11 @@ export const LeadsPage = () => {
 
             {formData.status === 'Future Requirement' ? (
               <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-700 uppercase">Expected Timeline</label>
+                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">Expected Timeline</label>
                 <select
                   value={formData.expectedPurchaseMonth}
                   onChange={(e) => setFormData({ ...formData, expectedPurchaseMonth: e.target.value })}
-                  className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
+                  className="w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
                 >
                   <option value="After 2 Months">After 2 Months</option>
                   <option value="After 6 Months">After 6 Months</option>
@@ -433,7 +433,7 @@ export const LeadsPage = () => {
       </Modal>
 
       {/* Record Direct Item Sale Modal (Auto generates 3 service reminders) */}
-      <Modal isOpen={saleModalOpen} onClose={() => setSaleModalOpen(false)} title="Record Item / Equipment Sale">
+      <Modal isOpen={saleModalOpen} onClose={() => setSaleModalOpen(false)} title="Record Item / Equipment Sale" maxWidth="max-w-xl">
         <form onSubmit={handleSaveDirectSale} className="space-y-4">
           <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-xs text-emerald-800 space-y-1">
             <p className="font-bold flex items-center gap-1.5">
@@ -453,7 +453,7 @@ export const LeadsPage = () => {
             required
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Company Name"
               placeholder="e.g. Surat Diamond Craft"
@@ -462,8 +462,8 @@ export const LeadsPage = () => {
               required
             />
             <div className="space-y-1.5 w-full">
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
-                Phone Number <span className="text-red-500">*</span>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
+                <span>Phone Number</span> <span className="text-red-500 select-none">*</span>
               </label>
               <ReactPhoneInput
                 country={'in'}
@@ -489,7 +489,7 @@ export const LeadsPage = () => {
             required
           />
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               label="Purchase / Installation Date"
               type="date"
@@ -498,11 +498,11 @@ export const LeadsPage = () => {
               required
             />
             <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-700 uppercase">Assign Engineer</label>
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">Assign Engineer</label>
               <select
                 value={saleFormData.assignedEngineer}
                 onChange={(e) => setSaleFormData({ ...saleFormData, assignedEngineer: e.target.value })}
-                className="w-full px-3 py-2 text-xs font-semibold border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] bg-white text-gray-900 truncate"
+                className="w-full h-[38px] px-3 py-2 text-xs font-medium border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] bg-white text-gray-900 truncate"
               >
                 {engineersList.length > 0 ? (
                   engineersList.map((eng) => (
@@ -530,7 +530,7 @@ export const LeadsPage = () => {
       </Modal>
 
       {/* Save to Future Opportunity Vault Modal */}
-      <Modal isOpen={futureModalOpen} onClose={() => setFutureModalOpen(false)} title="Move to Future Requirements Vault (Admin Visible)">
+      <Modal isOpen={futureModalOpen} onClose={() => setFutureModalOpen(false)} title="Move to Future Requirements Vault (Admin Visible)" maxWidth="max-w-xl">
         <form onSubmit={handleSaveFutureOpp} className="space-y-4">
           <p className="text-xs text-gray-500">
             Client indicated they don't need the product right now. Save this record into the Future Requirements database.
