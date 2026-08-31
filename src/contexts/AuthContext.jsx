@@ -58,8 +58,8 @@ export const AuthProvider = ({ children }) => {
   }, [configured]);
 
   // Custom Signup Handler
-  const signup = async ({ name, email, password, role = 'Sales' }) => {
-    const res = await registerUser({ name, email, password, role });
+  const signup = async ({ name, email, password, role = 'Sales', branch = 'Surat' }) => {
+    const res = await registerUser({ name, email, password, role, branch });
     if (res.success) {
       if (res.requiresConfirmation) {
         toast.info('Verification email sent! Please check your inbox.');
@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
       } else if (res.user) {
         setCurrentUser(res.user);
         localStorage.setItem('hitech_v2_user', JSON.stringify(res.user));
-        toast.success(`Account created as ${role}!`);
+        toast.success(`Account created as ${role} (${branch} Branch)!`);
         return { user: res.user, requiresConfirmation: false, error: null };
       }
     } else {
@@ -113,6 +113,15 @@ export const AuthProvider = ({ children }) => {
     toast.success(`Role switched to: ${roleName}`);
   };
 
+  // Switch branch dynamically (for testing / admin)
+  const switchBranch = (branchName) => {
+    if (!currentUser) return;
+    const updated = { ...currentUser, branch: branchName };
+    setCurrentUser(updated);
+    localStorage.setItem('hitech_v2_user', JSON.stringify(updated));
+    toast.success(`Branch switched to: ${branchName}`);
+  };
+
   // Custom Logout Handler
   const logout = async () => {
     await logoutUser();
@@ -126,12 +135,14 @@ export const AuthProvider = ({ children }) => {
       value={{
         currentUser,
         role: currentUser?.role || 'Sales',
+        branch: currentUser?.branch || 'Surat',
         loading,
         isConfigured: configured,
         signup,
         login,
         adminLogin,
         switchRole,
+        switchBranch,
         logout
       }}
     >

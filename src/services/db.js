@@ -35,6 +35,7 @@ class SupabaseDatabase {
             customerName: l.customer_name,
             company: l.company,
             phone: l.phone,
+            branch: l.branch || l.city || 'Surat',
             leadType: l.lead_type || l.leadType || 'Hot Lead',
             interestedProduct: l.interested_product,
             requirement: l.requirement,
@@ -123,12 +124,14 @@ class SupabaseDatabase {
     const salesPersonName = lead.salesPersonName || currentUser?.name || 'Vikram Mehta';
     const salesPersonId = lead.salesPersonId || currentUser?.id || 'S-101';
     const leadType = lead.leadType || 'Hot Lead';
+    const branch = lead.branch || currentUser?.branch || 'Surat';
 
     const newLead = {
       id,
       customer_name: lead.customerName || lead.customer_name,
       company: lead.company,
       phone: lead.phone,
+      branch: branch,
       lead_type: leadType,
       interested_product: lead.interestedProduct || lead.interested_product || lead.requirement,
       requirement: lead.requirement,
@@ -156,6 +159,7 @@ class SupabaseDatabase {
       customerName: newLead.customer_name,
       company: newLead.company,
       phone: newLead.phone,
+      branch: branch,
       leadType: leadType,
       interestedProduct: newLead.interested_product,
       requirement: newLead.requirement,
@@ -523,6 +527,7 @@ class SupabaseDatabase {
             customerName: c.customer_name,
             company: c.company,
             phone: c.phone,
+            branch: c.branch || 'Surat',
             purchasedProduct: c.purchased_product,
             installationDate: c.installation_date,
             assignedEngineer: c.assigned_engineer,
@@ -575,6 +580,7 @@ class SupabaseDatabase {
             customerId: s.customer_id,
             customerName: s.customer_name,
             company: s.company,
+            branch: s.branch || 'Surat',
             product: s.product,
             serviceName: s.service_name,
             scheduledDate: s.scheduled_date,
@@ -905,6 +911,439 @@ class SupabaseDatabase {
       }
     }
     this.saveLocal('hitech_v2_notifications', []);
+  }
+
+  // --- STOCK / INVENTORY (Branch-Wise: Surat, Morbi, Rajkot) ---
+  async getStockItems() {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('stock_items')
+          .select('*')
+          .order('item_name', { ascending: true });
+
+        if (error) throw error;
+        if (data && data.length > 0) {
+          return data.map(s => ({
+            id: s.id,
+            itemName: s.item_name,
+            category: s.category || 'Spare Part',
+            partNumber: s.part_number,
+            branch: s.branch || 'Surat',
+            quantity: Number(s.quantity) || 0,
+            unit: s.unit || 'Units',
+            minAlertLevel: Number(s.min_alert_level) || 5,
+            annualConsumption: Number(s.annual_consumption) || 0,
+            unitPrice: Number(s.unit_price) || 0,
+            compatibleModels: s.compatible_models || '',
+            lastRestockedDate: s.last_restocked_date || new Date().toISOString().split('T')[0],
+            notes: s.notes || ''
+          }));
+        }
+      } catch (e) {
+        console.warn('Supabase fetch stock items error, using local fallback:', e);
+      }
+    }
+
+    const fallbackStock = [
+      // --- SURAT BRANCH ---
+      {
+        id: 'STK-SRT-01',
+        itemName: '50 HP Screw Air Compressor (Direct Drive)',
+        category: 'Machine',
+        partNumber: 'HT-CMP-50HP-DD',
+        branch: 'Surat',
+        quantity: 4,
+        unit: 'Units',
+        minAlertLevel: 2,
+        annualConsumption: 24,
+        unitPrice: 420000,
+        compatibleModels: 'Standard 50 HP Industrial Series',
+        lastRestockedDate: '2026-08-20',
+        notes: 'High demand textile & diamond processing units'
+      },
+      {
+        id: 'STK-SRT-02',
+        itemName: '75 HP VFD Screw Compressor (Energy Saver)',
+        category: 'Machine',
+        partNumber: 'HT-CMP-75HP-VFD',
+        branch: 'Surat',
+        quantity: 3,
+        unit: 'Units',
+        minAlertLevel: 2,
+        annualConsumption: 18,
+        unitPrice: 650000,
+        compatibleModels: 'VFD Series Plant Installations',
+        lastRestockedDate: '2026-08-15',
+        notes: 'Variable speed drive for heavy power saving'
+      },
+      {
+        id: 'STK-SRT-03',
+        itemName: 'Air Filter Cartridge 50 HP (Nano Fiber)',
+        category: 'Spare Part',
+        partNumber: 'HT-AF-50HP-NF',
+        branch: 'Surat',
+        quantity: 28,
+        unit: 'Units',
+        minAlertLevel: 10,
+        annualConsumption: 140,
+        unitPrice: 2800,
+        compatibleModels: '50 HP & 60 HP Screw Compressors',
+        lastRestockedDate: '2026-08-25',
+        notes: 'Fast moving consumable, replaced every 2000 hours'
+      },
+      {
+        id: 'STK-SRT-04',
+        itemName: 'Spin-On Oil Filter 50/75 HP',
+        category: 'Spare Part',
+        partNumber: 'HT-OF-75HP-SO',
+        branch: 'Surat',
+        quantity: 22,
+        unit: 'Units',
+        minAlertLevel: 8,
+        annualConsumption: 120,
+        unitPrice: 1950,
+        compatibleModels: '50 HP, 75 HP, 100 HP Models',
+        lastRestockedDate: '2026-08-22',
+        notes: 'Routine service replacement item'
+      },
+      {
+        id: 'STK-SRT-05',
+        itemName: 'Synthetic Compressor Lubricant (ISO VG 46 - 20L)',
+        category: 'Spare Part',
+        partNumber: 'HT-OIL-VG46-20L',
+        branch: 'Surat',
+        quantity: 15,
+        unit: 'Pails (20L)',
+        minAlertLevel: 6,
+        annualConsumption: 95,
+        unitPrice: 7800,
+        compatibleModels: 'All Hi-Tech Rotary Screw Series',
+        lastRestockedDate: '2026-08-26',
+        notes: '8000-Hour long life synthetic oil'
+      },
+      {
+        id: 'STK-SRT-06',
+        itemName: 'Air-Oil Separator Element 75 HP',
+        category: 'Spare Part',
+        partNumber: 'HT-SEP-75HP-FL',
+        branch: 'Surat',
+        quantity: 6,
+        unit: 'Units',
+        minAlertLevel: 4,
+        annualConsumption: 36,
+        unitPrice: 8500,
+        compatibleModels: '75 HP VFD & Direct Drive Series',
+        lastRestockedDate: '2026-08-10',
+        notes: 'Residual oil content < 3 ppm'
+      },
+
+      // --- MORBI BRANCH ---
+      {
+        id: 'STK-MRB-01',
+        itemName: '100 HP Heavy-Duty Screw Air Compressor',
+        category: 'Machine',
+        partNumber: 'HT-CMP-100HP-HD',
+        branch: 'Morbi',
+        quantity: 2,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 16,
+        unitPrice: 890000,
+        compatibleModels: 'Ceramic & Heavy Vitrified Tile Plants',
+        lastRestockedDate: '2026-08-18',
+        notes: 'Ceramic cluster standard heavy unit'
+      },
+      {
+        id: 'STK-MRB-02',
+        itemName: '10-Ton Industrial Water Chiller',
+        category: 'Machine',
+        partNumber: 'HT-CHL-10TON',
+        branch: 'Morbi',
+        quantity: 3,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 12,
+        unitPrice: 380000,
+        compatibleModels: 'Ceramic Roller & Glaze Line Cooling',
+        lastRestockedDate: '2026-08-12',
+        notes: 'Heavy duty scroll compressor chiller'
+      },
+      {
+        id: 'STK-MRB-03',
+        itemName: 'Air Filter Cartridge 100 HP Heavy Dust',
+        category: 'Spare Part',
+        partNumber: 'HT-AF-100HP-HD',
+        branch: 'Morbi',
+        quantity: 35,
+        unit: 'Units',
+        minAlertLevel: 12,
+        annualConsumption: 190,
+        unitPrice: 4200,
+        compatibleModels: '100 HP & 120 HP Screw Compressors',
+        lastRestockedDate: '2026-08-28',
+        notes: 'Critical high-dust ceramic zone intake filter'
+      },
+      {
+        id: 'STK-MRB-04',
+        itemName: 'Refrigerated Air Dryer 150 CFM',
+        category: 'Machine',
+        partNumber: 'HT-DRY-150CFM',
+        branch: 'Morbi',
+        quantity: 4,
+        unit: 'Units',
+        minAlertLevel: 2,
+        annualConsumption: 22,
+        unitPrice: 145000,
+        compatibleModels: 'Moisture removal for ceramic glazing lines',
+        lastRestockedDate: '2026-08-14',
+        notes: '+3°C pressure dew point dryer'
+      },
+      {
+        id: 'STK-MRB-05',
+        itemName: 'Drive Belt Set (SPB 2240 - High Torque)',
+        category: 'Spare Part',
+        partNumber: 'HT-BLT-SPB2240',
+        branch: 'Morbi',
+        quantity: 18,
+        unit: 'Sets',
+        minAlertLevel: 6,
+        annualConsumption: 75,
+        unitPrice: 3200,
+        compatibleModels: '50 HP & 75 HP Belt Driven Compressors',
+        lastRestockedDate: '2026-08-19',
+        notes: 'Oil & heat resistant cogged raw edge belts'
+      },
+
+      // --- RAJKOT BRANCH ---
+      {
+        id: 'STK-RJK-01',
+        itemName: '30 HP Compact Rotary Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HT-CMP-30HP-CP',
+        branch: 'Rajkot',
+        quantity: 5,
+        unit: 'Units',
+        minAlertLevel: 2,
+        annualConsumption: 28,
+        unitPrice: 295000,
+        compatibleModels: 'CNC Machine Shops & Forging Units',
+        lastRestockedDate: '2026-08-24',
+        notes: 'Popular in Rajkot engineering and auto-parts hub'
+      },
+      {
+        id: 'STK-RJK-02',
+        itemName: 'Refrigerated Air Dryer 100 CFM',
+        category: 'Machine',
+        partNumber: 'HT-DRY-100CFM',
+        branch: 'Rajkot',
+        quantity: 3,
+        unit: 'Units',
+        minAlertLevel: 2,
+        annualConsumption: 20,
+        unitPrice: 98000,
+        compatibleModels: '30 HP & 50 HP CNC workshop lines',
+        lastRestockedDate: '2026-08-16',
+        notes: 'Ensures moisture-free pneumatic tooling'
+      },
+      {
+        id: 'STK-RJK-03',
+        itemName: 'Air Filter Cartridge 30 HP Compact',
+        category: 'Spare Part',
+        partNumber: 'HT-AF-30HP-CP',
+        branch: 'Rajkot',
+        quantity: 24,
+        unit: 'Units',
+        minAlertLevel: 8,
+        annualConsumption: 110,
+        unitPrice: 2200,
+        compatibleModels: '30 HP Compact Series',
+        lastRestockedDate: '2026-08-27',
+        notes: 'Fast moving consumable in Rajkot machine tooling'
+      },
+      {
+        id: 'STK-RJK-04',
+        itemName: 'Thermostatic Valve Element (71°C)',
+        category: 'Spare Part',
+        partNumber: 'HT-THV-71C',
+        branch: 'Rajkot',
+        quantity: 8,
+        unit: 'Units',
+        minAlertLevel: 3,
+        annualConsumption: 32,
+        unitPrice: 4500,
+        compatibleModels: 'All Oil Injected Screw Compressors',
+        lastRestockedDate: '2026-08-08',
+        notes: 'Oil temperature regulation valve'
+      },
+      {
+        id: 'STK-RJK-05',
+        itemName: 'Minimum Pressure Valve (MPV) Kit',
+        category: 'Spare Part',
+        partNumber: 'HT-MPV-KIT-50',
+        branch: 'Rajkot',
+        quantity: 5,
+        unit: 'Kits',
+        minAlertLevel: 3,
+        annualConsumption: 26,
+        unitPrice: 5800,
+        compatibleModels: '50 HP Discharge Line Valves',
+        lastRestockedDate: '2026-08-05',
+        notes: 'Includes internal seals and return spring'
+      }
+    ];
+
+    return this.getLocal('hitech_v2_stock_items', fallbackStock);
+  }
+
+  async addStockItem(item) {
+    const id = `STK-${Date.now().toString().slice(-4)}`;
+    const newItem = {
+      id,
+      item_name: item.itemName,
+      category: item.category || 'Spare Part',
+      part_number: item.partNumber,
+      branch: item.branch || 'Surat',
+      quantity: Number(item.quantity) || 0,
+      unit: item.unit || 'Units',
+      min_alert_level: Number(item.minAlertLevel) || 5,
+      annual_consumption: Number(item.annualConsumption) || 0,
+      unit_price: Number(item.unitPrice) || 0,
+      compatible_models: item.compatibleModels || '',
+      last_restocked_date: item.lastRestockedDate || new Date().toISOString().split('T')[0],
+      notes: item.notes || ''
+    };
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('stock_items').insert([newItem]);
+      } catch (e) {
+        console.error('Supabase add stock item error:', e);
+      }
+    }
+
+    const formatted = {
+      id,
+      itemName: newItem.item_name,
+      category: newItem.category,
+      partNumber: newItem.part_number,
+      branch: newItem.branch,
+      quantity: newItem.quantity,
+      unit: newItem.unit,
+      minAlertLevel: newItem.min_alert_level,
+      annualConsumption: newItem.annual_consumption,
+      unitPrice: newItem.unit_price,
+      compatibleModels: newItem.compatible_models,
+      lastRestockedDate: newItem.last_restocked_date,
+      notes: newItem.notes
+    };
+
+    const current = await this.getStockItems();
+    this.saveLocal('hitech_v2_stock_items', [formatted, ...current]);
+    return formatted;
+  }
+
+  async updateStockItem(id, updated) {
+    if (isSupabaseConfigured()) {
+      try {
+        const payload = {};
+        if (updated.itemName) payload.item_name = updated.itemName;
+        if (updated.category) payload.category = updated.category;
+        if (updated.partNumber) payload.part_number = updated.partNumber;
+        if (updated.branch) payload.branch = updated.branch;
+        if (updated.quantity !== undefined) payload.quantity = Number(updated.quantity);
+        if (updated.unit) payload.unit = updated.unit;
+        if (updated.minAlertLevel !== undefined) payload.min_alert_level = Number(updated.minAlertLevel);
+        if (updated.annualConsumption !== undefined) payload.annual_consumption = Number(updated.annualConsumption);
+        if (updated.unitPrice !== undefined) payload.unit_price = Number(updated.unitPrice);
+        if (updated.compatibleModels !== undefined) payload.compatible_models = updated.compatibleModels;
+        if (updated.lastRestockedDate) payload.last_restocked_date = updated.lastRestockedDate;
+        if (updated.notes !== undefined) payload.notes = updated.notes;
+
+        await supabase.from('stock_items').update(payload).eq('id', id);
+      } catch (e) {
+        console.error('Supabase update stock item error:', e);
+      }
+    }
+
+    const current = await this.getStockItems();
+    const updatedList = current.map(s => s.id === id ? { ...s, ...updated } : s);
+    this.saveLocal('hitech_v2_stock_items', updatedList);
+  }
+
+  async adjustStockQuantity(id, { adjustmentType, quantity, reason, notes }) {
+    const current = await this.getStockItems();
+    const item = current.find(s => s.id === id);
+    if (!item) return null;
+
+    let newQty = item.quantity;
+    const changeAmt = Number(quantity) || 0;
+    if (adjustmentType === 'ADD') {
+      newQty += changeAmt;
+    } else if (adjustmentType === 'DEDUCT') {
+      newQty = Math.max(0, newQty - changeAmt);
+    } else if (adjustmentType === 'SET') {
+      newQty = Math.max(0, changeAmt);
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    await this.updateStockItem(id, {
+      quantity: newQty,
+      lastRestockedDate: adjustmentType === 'ADD' ? today : item.lastRestockedDate,
+      notes: notes ? `${item.notes ? item.notes + ' | ' : ''}${reason}: ${notes}` : item.notes
+    });
+
+    return { ...item, quantity: newQty };
+  }
+
+  async transferStock(id, { fromBranch, toBranch, quantity, notes }) {
+    const current = await this.getStockItems();
+    const sourceItem = current.find(s => s.id === id);
+    if (!sourceItem || fromBranch === toBranch) return false;
+
+    const transferQty = Number(quantity) || 0;
+    if (sourceItem.quantity < transferQty) {
+      throw new Error(`Insufficient stock in ${fromBranch}. Available: ${sourceItem.quantity}`);
+    }
+
+    // 1. Deduct from source branch
+    const updatedSourceQty = sourceItem.quantity - transferQty;
+    await this.updateStockItem(sourceItem.id, { quantity: updatedSourceQty });
+
+    // 2. Add to destination branch (or find matching item in destination branch)
+    const destItem = current.find(s => s.branch === toBranch && s.partNumber === sourceItem.partNumber);
+    if (destItem) {
+      await this.updateStockItem(destItem.id, { quantity: destItem.quantity + transferQty });
+    } else {
+      // Create new branch item entry
+      await this.addStockItem({
+        itemName: sourceItem.itemName,
+        category: sourceItem.category,
+        partNumber: sourceItem.partNumber,
+        branch: toBranch,
+        quantity: transferQty,
+        unit: sourceItem.unit,
+        minAlertLevel: sourceItem.minAlertLevel,
+        annualConsumption: Math.round(sourceItem.annualConsumption / 2),
+        unitPrice: sourceItem.unitPrice,
+        compatibleModels: sourceItem.compatibleModels,
+        notes: `Transferred from ${fromBranch} on ${new Date().toISOString().split('T')[0]}`
+      });
+    }
+
+    return true;
+  }
+
+  async deleteStockItem(id) {
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('stock_items').delete().eq('id', id);
+      } catch (e) {
+        console.error('Supabase delete stock item error:', e);
+      }
+    }
+    const current = await this.getStockItems();
+    this.saveLocal('hitech_v2_stock_items', current.filter(s => s.id !== id));
   }
 
   // Helper local storage functions

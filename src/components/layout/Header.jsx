@@ -1,15 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
-import { Menu, User, LogOut, ChevronDown, ShieldCheck } from 'lucide-react';
+import { Menu, User, LogOut, ChevronDown, ShieldCheck, Building2 } from 'lucide-react';
 import { Badge } from '../ui/Badge.jsx';
 
 export const Header = ({ onOpenSidebar }) => {
-  const { currentUser, role, logout } = useAuth();
+  const { currentUser, role, branch, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
+
+  const userBranch = currentUser?.branch || branch || 'Surat';
 
   const getPageTitle = () => {
     if (location.pathname === '/admin/dashboard') return 'Admin Panel';
@@ -65,7 +67,10 @@ export const Header = ({ onOpenSidebar }) => {
       </div>
 
       <div className="flex items-center gap-3">
-        <Badge variant="primary">{role} Workspace</Badge>
+        <Badge variant="primary" className="flex items-center gap-1">
+          <Building2 className="w-3 h-3 text-indigo-300" />
+          {userBranch} Branch • {role}
+        </Badge>
 
         {/* User Profile Dropdown */}
         <div className="relative" ref={dropdownRef}>
@@ -105,10 +110,13 @@ export const Header = ({ onOpenSidebar }) => {
               <div className="px-4 py-2.5 border-b border-gray-100">
                 <p className="text-xs font-bold text-gray-900 leading-snug">{currentUser?.name || 'User Account'}</p>
                 <p className="text-[11px] text-gray-500 truncate">{currentUser?.email}</p>
-                <div className="mt-1.5">
+                <div className="mt-1.5 flex items-center gap-1">
                   <span className="inline-flex items-center gap-1 text-[10px] font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
-                    <ShieldCheck className="w-3 h-3 text-[#3B318A]" />
-                    {role} Access
+                    <Building2 className="w-3 h-3 text-[#3B318A]" />
+                    {userBranch} Branch
+                  </span>
+                  <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                    {role}
                   </span>
                 </div>
               </div>

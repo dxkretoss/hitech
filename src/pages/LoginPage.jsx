@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import logoPng from '../assets/logo.png';
 import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
-import { Briefcase, Wrench, Lock, Mail, User, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Briefcase, Wrench, Lock, Mail, User, Eye, EyeOff, ArrowRight, CheckCircle2, Building2 } from 'lucide-react';
 
 export const LoginPage = () => {
   const { login, signup } = useAuth();
@@ -15,6 +15,7 @@ export const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('Sales'); // 'Sales' | 'Engineer'
+  const [branch, setBranch] = useState('Surat'); // 'Surat' | 'Morbi' | 'Rajkot'
   const [showPassword, setShowPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
@@ -30,7 +31,7 @@ export const LoginPage = () => {
         navigate('/dashboard');
       }
     } else {
-      const { user, requiresConfirmation } = await signup({ name, email, password, role });
+      const { user, requiresConfirmation } = await signup({ name, email, password, role, branch });
       setSubmitting(false);
 
       if (requiresConfirmation) {
@@ -220,6 +221,31 @@ export const LoginPage = () => {
                         <span className="text-xs font-bold">Engineer</span>
                         <span className="text-[10px] text-gray-400">Service & Sites</span>
                       </button>
+                    </div>
+
+                    {/* Branch Selection on Sign Up */}
+                    <div className="space-y-1.5 pt-2 border-t border-gray-100">
+                      <label className="block text-xs font-bold text-gray-700">Select Assigned Branch</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {['Surat', 'Morbi', 'Rajkot'].map((br) => (
+                          <button
+                            key={br}
+                            type="button"
+                            onClick={() => setBranch(br)}
+                            className={`py-2 px-1.5 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 ${
+                              branch === br
+                                ? 'border-[#3B318A] bg-indigo-50/80 text-[#3B318A] ring-2 ring-[#3B318A]/20 shadow-2xs font-extrabold'
+                                : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-600'
+                            }`}
+                          >
+                            <Building2 className="w-3.5 h-3.5" />
+                            <span>{br}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-gray-400 text-center">
+                        Your workspace will display <strong>{branch} Branch</strong> data.
+                      </p>
                     </div>
                   </div>
                 )}

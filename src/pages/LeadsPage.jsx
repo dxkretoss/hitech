@@ -223,12 +223,30 @@ export const LeadsPage = () => {
     }
   };
 
-  // Filtering by search term and status/type pills
+  const userBranch = currentUser?.branch || 'Surat';
+  const isAdmin = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
+  const [selectedBranch, setSelectedBranch] = useState(isAdmin ? 'ALL' : userBranch);
+
+  useEffect(() => {
+    if (!isAdmin) {
+      setSelectedBranch(userBranch);
+    }
+  }, [userBranch, isAdmin]);
+
+  // Filtering by search term, branch, and status/type pills
   const filteredLeads = leads.filter((l) => {
+    // Branch filter: if not admin, show only user branch
+    if (!isAdmin) {
+      if (l.branch && l.branch !== userBranch) return false;
+    } else if (selectedBranch !== 'ALL') {
+      if (l.branch && l.branch !== selectedBranch) return false;
+    }
+
     const matchesSearch =
       (l.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (l.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (l.phone || '').includes(searchTerm) ||
+      (l.branch || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (l.requirement || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (l.salesPersonName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (l.lossReason || '').toLowerCase().includes(searchTerm.toLowerCase()) ||

@@ -12,6 +12,7 @@ import { FutureOpportunitiesPage } from '../pages/FutureOpportunitiesPage.jsx';
 import { CustomersPage } from '../pages/CustomersPage.jsx';
 import { CustomerDetailPage } from '../pages/CustomerDetailPage.jsx';
 import { ServicesPage } from '../pages/ServicesPage.jsx';
+import { StockPage } from '../pages/StockPage.jsx';
 import { NotificationsPage } from '../pages/NotificationsPage.jsx';
 import { ProfilePage } from '../pages/ProfilePage.jsx';
 
@@ -44,6 +45,7 @@ export const AppRoutes = () => {
         <Route path="/customers" element={<CustomersPage />} />
         <Route path="/customers/:id" element={<CustomerDetailPage />} />
         <Route path="/services" element={<ServicesPage />} />
+        <Route path="/stock" element={<StockPage />} />
         <Route path="/notifications" element={<NotificationsPage />} />
         <Route path="/profile" element={<ProfilePage />} />
       </Route>

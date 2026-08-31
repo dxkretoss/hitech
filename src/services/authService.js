@@ -14,11 +14,12 @@ export const isSuperAdminUser = (user) => {
   return user.role === 'Owner' || user.role === 'SuperAdmin';
 };
 
-// Custom function: Register a new user with specified role
-export const registerUser = async ({ name, email, password, role = 'Sales' }) => {
+// Custom function: Register a new user with specified role and branch
+export const registerUser = async ({ name, email, password, role = 'Sales', branch = 'Surat' }) => {
   const cleanName = sanitizeText(name);
   const cleanEmail = sanitizeEmail(email);
   const cleanPassword = sanitizePassword(password);
+  const cleanBranch = branch || 'Surat';
 
   const configured = isSupabaseConfigured();
 
@@ -31,7 +32,8 @@ export const registerUser = async ({ name, email, password, role = 'Sales' }) =>
           data: {
             name: cleanName,
             full_name: cleanName,
-            role: role // 'Sales' or 'Engineer'
+            role: role, // 'Sales' or 'Engineer'
+            branch: cleanBranch // 'Surat' | 'Morbi' | 'Rajkot'
           }
         }
       });
@@ -54,6 +56,7 @@ export const registerUser = async ({ name, email, password, role = 'Sales' }) =>
         name: cleanName,
         email: cleanEmail,
         role,
+        branch: cleanBranch,
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
       } : null;
 
@@ -70,6 +73,7 @@ export const registerUser = async ({ name, email, password, role = 'Sales' }) =>
       name: cleanName,
       email: cleanEmail,
       role,
+      branch: cleanBranch,
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
     };
     return { success: true, user, requiresConfirmation: false, error: null };
@@ -102,6 +106,7 @@ export const loginUser = async ({ email, password }) => {
         email: data.user.email,
         name: metadata.name || metadata.full_name || cleanEmail.split('@')[0],
         role: metadata.role || 'Sales',
+        branch: metadata.branch || 'Surat',
         avatar: metadata.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
       };
 
@@ -117,7 +122,8 @@ export const loginUser = async ({ email, password }) => {
       id: `U-${Date.now()}`,
       email: cleanEmail,
       name: cleanEmail.split('@')[0],
-      role: 'Sales',
+      role: cleanEmail.includes('engineer') ? 'Engineer' : 'Sales',
+      branch: cleanEmail.includes('morbi') ? 'Morbi' : cleanEmail.includes('rajkot') ? 'Rajkot' : 'Surat',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
     };
     return { success: true, user, error: null };
@@ -242,6 +248,7 @@ export const getCurrentSessionUser = async () => {
     email: session.user.email,
     name: metadata.name || metadata.full_name || session.user.email.split('@')[0],
     role: metadata.role || 'Sales',
+    branch: metadata.branch || 'Surat',
     avatar: metadata.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
   };
 };

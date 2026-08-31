@@ -8,6 +8,7 @@ import {
   Sparkles,
   Users,
   Wrench,
+  Boxes,
   Bell,
   User,
   LogOut,

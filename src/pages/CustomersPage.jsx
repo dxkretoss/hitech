@@ -32,20 +32,25 @@ export const CustomersPage = () => {
     company: '',
     phone: '',
     purchasedProduct: '50 HP Screw Air Compressor',
+    dispatchBranch: 'Surat',
     installationDate: new Date().toISOString().split('T')[0],
     assignedEngineer: 'Sanjay Patel',
     address: ''
   });
+  const [machineStock, setMachineStock] = useState([]);
 
   const loadCustomers = async () => {
     setLoading(true);
-    const [data, profiles] = await Promise.all([
+    const [data, profiles, allStock] = await Promise.all([
       db.getCustomers(),
-      db.getProfiles()
+      db.getProfiles(),
+      db.getStockItems()
     ]);
     setCustomers(data || []);
     const engs = (profiles || []).filter(p => p.role === 'Engineer');
     setEngineersList(engs);
+    const machines = (allStock || []).filter(s => s.category === 'Machine');
+    setMachineStock(machines);
     setLoading(false);
   };
 
@@ -59,6 +64,7 @@ export const CustomersPage = () => {
       company: '',
       phone: '',
       purchasedProduct: '50 HP Screw Air Compressor',
+      dispatchBranch: 'Surat',
       installationDate: new Date().toISOString().split('T')[0],
       assignedEngineer: engineersList[0]?.name || 'Sanjay Patel',
       address: ''
@@ -69,7 +75,25 @@ export const CustomersPage = () => {
   const handleSaveDirectSale = async (e) => {
     e.preventDefault();
     await db.addCustomerSale(saleFormData, currentUser);
-    toast.success('Product Sale Saved! Initial Service scheduled for Field Engineer.');
+
+    // If matching machine stock is found in the dispatch branch, deduct 1 unit
+    const matchingStock = machineStock.find(
+      s => s.branch === saleFormData.dispatchBranch &&
+      (s.itemName.toLowerCase().includes(saleFormData.purchasedProduct.toLowerCase()) ||
+       saleFormData.purchasedProduct.toLowerCase().includes(s.itemName.toLowerCase()))
+    );
+    if (matchingStock && matchingStock.quantity > 0) {
+      await db.adjustStockQuantity(matchingStock.id, {
+        adjustmentType: 'DEDUCT',
+        quantity: 1,
+        reason: 'Direct Customer Machine Sale',
+        notes: `Sold to ${saleFormData.customerName} (${saleFormData.company})`
+      });
+      toast.success(`Product Sale Saved! 1 unit deducted from ${saleFormData.dispatchBranch} Branch machine inventory.`);
+    } else {
+      toast.success('Product Sale Saved! Initial Service scheduled for Field Engineer.');
+    }
+
     setSaleModalOpen(false);
     await loadCustomers();
   };
@@ -89,13 +113,21 @@ export const CustomersPage = () => {
     }
   };
 
-  const filteredCustomers = customers.filter(c =>
-    (c.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.phone || '').includes(searchTerm) ||
-    (c.purchasedProduct || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (c.salesPersonName || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const userBranch = currentUser?.branch || 'Surat';
+  const isAdmin = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
+
+  const filteredCustomers = customers.filter(c => {
+    if (!isAdmin && c.branch && c.branch !== userBranch) return false;
+
+    return (
+      (c.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.phone || '').includes(searchTerm) ||
+      (c.branch || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.purchasedProduct || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (c.salesPersonName || '').toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  });
 
   const columns = [
     {
@@ -106,6 +138,15 @@ export const CustomersPage = () => {
       header: 'Company Name',
       cell: (row) => (
         <span className="font-bold text-gray-900">{row.company}</span>
+      )
+    },
+    {
+      header: 'Branch',
+      cell: (row) => (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-800 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+          <Building2 className="w-3 h-3 text-[#3B318A]" />
+          {row.branch || 'Surat'}
+        </span>
       )
     },
     { header: 'Phone Number', accessor: 'phone' },
@@ -235,13 +276,60 @@ export const CustomersPage = () => {
               </div>
             </div>
 
-            <Input
-              label="Purchased Item / Product"
-              placeholder="e.g. 50 HP Screw Air Compressor"
-              value={saleFormData.purchasedProduct}
-              onChange={(e) => setSaleFormData({ ...saleFormData, purchasedProduct: e.target.value })}
-              required
-            />
+            {/* Branch Warehouse & Machine Stock Selection */}
+            <div className="space-y-1.5 p-3 bg-indigo-50/60 rounded-xl border border-indigo-100">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
+                <span>Dispatch / Fulfill from Branch Warehouse</span> <span className="text-red-500">*</span>
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                {['Surat', 'Morbi', 'Rajkot'].map((br) => {
+                  const branchStockCount = machineStock
+                    .filter((m) => m.branch === br)
+                    .reduce((acc, m) => acc + (Number(m.quantity) || 0), 0);
+
+                  return (
+                    <button
+                      key={br}
+                      type="button"
+                      onClick={() => setSaleFormData({ ...saleFormData, dispatchBranch: br })}
+                      className={`p-2 rounded-xl border text-xs font-bold transition-all text-center ${
+                        saleFormData.dispatchBranch === br
+                          ? 'bg-[#3B318A] text-white border-[#3B318A] shadow-xs'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                      }`}
+                    >
+                      <span className="block">{br} Branch</span>
+                      <span
+                        className={`text-[10px] font-semibold block mt-0.5 ${
+                          saleFormData.dispatchBranch === br ? 'text-indigo-200' : 'text-emerald-700'
+                        }`}
+                      >
+                        {branchStockCount} Machines
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
+                Purchased Item / Machine Product
+              </label>
+              <select
+                value={saleFormData.purchasedProduct}
+                onChange={(e) => setSaleFormData({ ...saleFormData, purchasedProduct: e.target.value })}
+                className="w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] font-semibold text-gray-900"
+              >
+                <option value="50 HP Screw Air Compressor">50 HP Screw Air Compressor</option>
+                <option value="75 HP VFD Screw Compressor">75 HP VFD Screw Compressor</option>
+                <option value="100 HP Heavy-Duty Screw Air Compressor">100 HP Heavy-Duty Screw Air Compressor</option>
+                <option value="30 HP Compact Rotary Screw Compressor">30 HP Compact Rotary Screw Compressor</option>
+                <option value="10-Ton Industrial Water Chiller">10-Ton Industrial Water Chiller</option>
+                <option value="Refrigerated Air Dryer 100 CFM">Refrigerated Air Dryer 100 CFM</option>
+                <option value="Refrigerated Air Dryer 150 CFM">Refrigerated Air Dryer 150 CFM</option>
+              </select>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
