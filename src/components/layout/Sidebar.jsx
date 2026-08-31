@@ -27,16 +27,17 @@ export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
 
   const navItems = [
     { label: 'Dashboard', path: dashboardPath, icon: LayoutDashboard },
-    { label: 'Leads', path: '/leads', icon: Briefcase },
+    { label: 'Leads', path: '/leads', icon: Briefcase, allowedRoles: ['Sales', 'Owner', 'SuperAdmin', 'Admin'] },
     { label: 'Future Opportunities', path: '/future-opportunities', icon: Sparkles, ownerOnly: true },
     { label: 'Customers', path: '/customers', icon: Users },
-    { label: 'Services', path: '/services', icon: Wrench },
+    { label: 'Services', path: '/services', icon: Wrench, allowedRoles: ['Engineer', 'Owner', 'SuperAdmin', 'Admin'] },
     { label: 'Notifications', path: '/notifications', icon: Bell },
     { label: 'Profile', path: '/profile', icon: User }
   ];
 
   const filteredNavItems = navItems.filter(item => {
     if (item.ownerOnly && !isOwner) return false;
+    if (item.allowedRoles && !item.allowedRoles.includes(role)) return false;
     return true;
   });
 

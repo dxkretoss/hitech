@@ -5,6 +5,7 @@ import { db } from '../services/db.js';
 import { Card } from '../components/ui/Card.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
+import { Modal } from '../components/ui/Modal.jsx';
 import {
   Users,
   Briefcase,
@@ -15,7 +16,10 @@ import {
   Filter,
   Sparkles,
   TrendingUp,
-  UserCheck
+  UserCheck,
+  Calendar,
+  Clock,
+  ShieldCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -33,6 +37,7 @@ export const AdminDashboardPage = () => {
   const [leads, setLeads] = useState([]);
   const [futureOpps, setFutureOpps] = useState([]);
   const [customers, setCustomers] = useState([]);
+  const [services, setServices] = useState([]);
   const [salesSummary, setSalesSummary] = useState([]);
   
   const [selectedSalesRepFilter, setSelectedSalesRepFilter] = useState('All');
@@ -41,12 +46,13 @@ export const AdminDashboardPage = () => {
 
   const loadAdminData = async () => {
     setLoading(true);
-    const [profilesData, leadsData, oppsData, custsData, summaryData] = await Promise.all([
+    const [profilesData, leadsData, oppsData, custsData, summaryData, servicesData] = await Promise.all([
       db.getProfiles(),
       db.getLeads(),
       db.getFutureOpportunities(),
       db.getCustomers(),
-      db.getSalesPerformanceSummary()
+      db.getSalesPerformanceSummary(),
+      db.getServices()
     ]);
 
     setStaffList(profilesData || []);
@@ -54,6 +60,7 @@ export const AdminDashboardPage = () => {
     setFutureOpps(oppsData || []);
     setCustomers(custsData || []);
     setSalesSummary(summaryData || []);
+    setServices(servicesData || []);
     setLoading(false);
   };
 
@@ -292,6 +299,64 @@ export const AdminDashboardPage = () => {
         </div>
       </Card>
 
+      {/* Field Engineer Service Operations & Scheduled Reminders Overview */}
+      <Card className="p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-4 border-gray-100">
+          <div>
+            <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
+              <Wrench className="w-5 h-5 text-teal-600" />
+              Field Engineering Service Dispatch & Preventative Maintenance ({services.length})
+            </h3>
+            <p className="text-xs text-gray-500">Live monitoring of customer machine servicing (+2m, +6m, +10m auto-generated schedules)</p>
+          </div>
+          <Button
+            variant="outline"
+            icon={Calendar}
+            onClick={() => navigate('/services')}
+            className="text-xs"
+          >
+            Open Full Service Center
+          </Button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold uppercase text-[10px]">
+                <th className="py-3 px-4">Customer & Company</th>
+                <th className="py-3 px-4">Service Type</th>
+                <th className="py-3 px-4">Assigned Engineer</th>
+                <th className="py-3 px-4">Scheduled Date</th>
+                <th className="py-3 px-4">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {services.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="py-6 text-center text-xs text-gray-400">
+                    No field services scheduled yet.
+                  </td>
+                </tr>
+              ) : (
+                services.slice(0, 5).map((s) => (
+                  <tr key={s.id} className="hover:bg-gray-50/70 transition-colors">
+                    <td className="py-3 px-4 font-bold text-gray-900">{s.customerName} <span className="text-gray-400 font-normal">({s.company})</span></td>
+                    <td className="py-3 px-4 text-gray-700">{s.serviceName}</td>
+                    <td className="py-3 px-4 font-semibold text-teal-700">{s.assignedEngineer}</td>
+                    <td className="py-3 px-4 font-bold text-gray-900">{s.scheduledDate}</td>
+                    <td className="py-3 px-4">
+                      <Badge variant={s.status === 'Completed' ? 'success' : s.status === 'Upcoming' ? 'info' : 'warning'}>
+                        {s.status}
+                      </Badge>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
       {/* Staff Accounts Management List */}
       <Card className="p-6 space-y-4">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-4 border-gray-100">
@@ -339,80 +404,75 @@ export const AdminDashboardPage = () => {
       </Card>
 
       {/* Modal for Creating Staff Account */}
-      {showAddModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-          <Card className="w-full max-w-md p-6 space-y-4 bg-white shadow-2xl rounded-2xl">
-            <h3 className="text-base font-bold text-gray-900 border-b pb-2">Create New Staff Account</h3>
-            <form onSubmit={handleCreateStaff} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="e.g. Ramesh Kumar"
-                  className="w-full px-3 py-2 text-xs border rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-                />
-              </div>
+      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Create New Staff Account" maxWidth="max-w-md">
+        <form onSubmit={handleCreateStaff} className="space-y-4">
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Full Name</label>
+            <input
+              type="text"
+              required
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              placeholder="e.g. Ramesh Kumar"
+              className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
+            />
+          </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  value={newEmail}
-                  onChange={(e) => setNewEmail(e.target.value)}
-                  placeholder="ramesh@hitechair.in"
-                  className="w-full px-3 py-2 text-xs border rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-                />
-              </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Email Address</label>
+            <input
+              type="email"
+              required
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+              placeholder="ramesh@hitechair.in"
+              className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
+            />
+          </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Temporary Password</label>
-                <input
-                  type="password"
-                  required
-                  minLength={6}
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full px-3 py-2 text-xs border rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-                />
-              </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Temporary Password</label>
+            <input
+              type="password"
+              required
+              minLength={6}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="••••••••"
+              className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
+            />
+          </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Assign Role</label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setNewRole('Sales')}
-                    className={`py-2 px-3 text-xs font-bold rounded-xl border ${newRole === 'Sales' ? 'bg-[#3B318A] text-white border-[#3B318A]' : 'bg-gray-50 text-gray-700'}`}
-                  >
-                    Sales Representative
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewRole('Engineer')}
-                    className={`py-2 px-3 text-xs font-bold rounded-xl border ${newRole === 'Engineer' ? 'bg-[#3B318A] text-white border-[#3B318A]' : 'bg-gray-50 text-gray-700'}`}
-                  >
-                    Field Engineer
-                  </button>
-                </div>
-              </div>
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Assign Role</label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => setNewRole('Sales')}
+                className={`py-2.5 px-3 text-xs font-bold rounded-xl border transition-all ${newRole === 'Sales' ? 'bg-[#3B318A] text-white border-[#3B318A] shadow-xs' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+              >
+                Sales Representative
+              </button>
+              <button
+                type="button"
+                onClick={() => setNewRole('Engineer')}
+                className={`py-2.5 px-3 text-xs font-bold rounded-xl border transition-all ${newRole === 'Engineer' ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
+              >
+                Field Engineer
+              </button>
+            </div>
+          </div>
 
-              <div className="flex gap-2 pt-2">
-                <Button type="button" variant="secondary" onClick={() => setShowAddModal(false)} className="w-1/2">
-                  Cancel
-                </Button>
-                <Button type="submit" disabled={submitting} variant="primary" className="w-1/2 bg-[#3B318A]">
-                  {submitting ? 'Creating...' : 'Create Staff Account'}
-                </Button>
-              </div>
-            </form>
-          </Card>
-        </div>
-      )}
+          <div className="flex gap-2 pt-3 border-t border-gray-100">
+            <Button type="button" variant="outline" onClick={() => setShowAddModal(false)} className="w-1/2">
+              Cancel
+            </Button>
+            <Button type="submit" disabled={submitting} variant="primary" className="w-1/2 bg-[#3B318A]">
+              {submitting ? 'Creating...' : 'Create Staff Account'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

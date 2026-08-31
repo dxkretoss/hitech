@@ -35,9 +35,13 @@ class SupabaseDatabase {
             customerName: l.customer_name,
             company: l.company,
             phone: l.phone,
+            leadType: l.lead_type || l.leadType || 'Hot Lead',
             interestedProduct: l.interested_product,
             requirement: l.requirement,
             status: l.status || 'New',
+            lossReason: l.loss_reason || l.lossReason || '',
+            lossRemark: l.loss_remark || l.lossRemark || '',
+            lossDate: l.loss_date || l.lossDate || '',
             followUpDate: l.follow_up_date || new Date().toISOString().split('T')[0],
             notes: l.notes || '',
             salesPersonId: l.sales_person_id || '',
@@ -48,22 +52,90 @@ class SupabaseDatabase {
         console.warn('Supabase fetch leads error, using local database fallback:', e);
       }
     }
-    return this.getLocal('hitech_v2_leads', []);
+
+    const fallbackLeads = [
+      {
+        id: 'LD-101',
+        customerName: 'Rajesh Shah',
+        company: 'Reliance Textiles Ltd',
+        phone: '+91 98765-43210',
+        leadType: 'Hot Lead',
+        interestedProduct: '75 HP VFD Screw Compressor',
+        requirement: 'Urgent replacement for main unit in Surat plant',
+        status: 'New',
+        followUpDate: '2026-09-02',
+        notes: 'Decision maker visit scheduled. High budget allocation.',
+        salesPersonId: 'S-101',
+        salesPersonName: 'Vikram Mehta'
+      },
+      {
+        id: 'LD-102',
+        customerName: 'Kishore Patel',
+        company: 'Patel Engineering & Tools',
+        phone: '+91 98251-67890',
+        leadType: 'Cold Lead',
+        interestedProduct: '10-Ton Industrial Water Chiller',
+        requirement: 'Expansion planned for next quarter',
+        status: 'New',
+        followUpDate: '2026-09-15',
+        notes: 'Sent catalog and pricing. Will review in monthly meeting.',
+        salesPersonId: 'S-101',
+        salesPersonName: 'Vikram Mehta'
+      },
+      {
+        id: 'LD-103',
+        customerName: 'Anil Desai',
+        company: 'Navsari Ceramics',
+        phone: '+91 99799-17803',
+        leadType: 'Hot Lead',
+        interestedProduct: '50 HP Screw Air Compressor',
+        requirement: 'New production line commissioning',
+        status: 'Won',
+        followUpDate: '2026-08-30',
+        notes: 'PO received, advance payment processed.',
+        salesPersonId: 'S-101',
+        salesPersonName: 'Vikram Mehta'
+      },
+      {
+        id: 'LD-104',
+        customerName: 'Suresh Trivedi',
+        company: 'Apex Plastics GIDC',
+        phone: '+91 97234-56789',
+        leadType: 'Hot Lead',
+        interestedProduct: 'Refrigerated Air Dryer 100 CFM',
+        requirement: 'Air moisture elimination in line 2',
+        status: 'Lost',
+        lossReason: 'Price too high / Competitor cheaper',
+        lossRemark: 'Client chose a competitor who offered a 15% discount with immediate next-day delivery.',
+        lossDate: '2026-08-28',
+        followUpDate: '2026-08-28',
+        notes: 'Lost to local vendor on pricing.',
+        salesPersonId: 'S-101',
+        salesPersonName: 'Vikram Mehta'
+      }
+    ];
+
+    return this.getLocal('hitech_v2_leads', fallbackLeads);
   }
 
   async addLead(lead, currentUser = null) {
     const id = `LD-${Date.now().toString().slice(-4)}`;
     const salesPersonName = lead.salesPersonName || currentUser?.name || 'Vikram Mehta';
     const salesPersonId = lead.salesPersonId || currentUser?.id || 'S-101';
+    const leadType = lead.leadType || 'Hot Lead';
 
     const newLead = {
       id,
       customer_name: lead.customerName || lead.customer_name,
       company: lead.company,
       phone: lead.phone,
+      lead_type: leadType,
       interested_product: lead.interestedProduct || lead.interested_product || lead.requirement,
       requirement: lead.requirement,
       status: lead.status || 'New',
+      loss_reason: lead.lossReason || '',
+      loss_remark: lead.lossRemark || '',
+      loss_date: lead.lossDate || '',
       follow_up_date: lead.followUpDate || lead.follow_up_date || new Date().toISOString().split('T')[0],
       notes: lead.notes || '',
       sales_person_id: salesPersonId,
@@ -84,9 +156,13 @@ class SupabaseDatabase {
       customerName: newLead.customer_name,
       company: newLead.company,
       phone: newLead.phone,
+      leadType: leadType,
       interestedProduct: newLead.interested_product,
       requirement: newLead.requirement,
       status: newLead.status,
+      lossReason: newLead.loss_reason,
+      lossRemark: newLead.loss_remark,
+      lossDate: newLead.loss_date,
       followUpDate: newLead.follow_up_date,
       notes: newLead.notes,
       salesPersonId: salesPersonId,
@@ -121,11 +197,15 @@ class SupabaseDatabase {
         if (updated.customerName) payload.customer_name = updated.customerName;
         if (updated.company) payload.company = updated.company;
         if (updated.phone) payload.phone = updated.phone;
+        if (updated.leadType) payload.lead_type = updated.leadType;
         if (updated.interestedProduct) payload.interested_product = updated.interestedProduct;
         if (updated.requirement) payload.requirement = updated.requirement;
         if (updated.status) payload.status = updated.status;
+        if (updated.lossReason !== undefined) payload.loss_reason = updated.lossReason;
+        if (updated.lossRemark !== undefined) payload.loss_remark = updated.lossRemark;
+        if (updated.lossDate !== undefined) payload.loss_date = updated.lossDate;
         if (updated.followUpDate) payload.follow_up_date = updated.followUpDate;
-        if (updated.notes) payload.notes = updated.notes;
+        if (updated.notes !== undefined) payload.notes = updated.notes;
         if (updated.salesPersonName) payload.sales_person_name = updated.salesPersonName;
 
         await supabase.from('leads').update(payload).eq('id', id);
@@ -137,6 +217,16 @@ class SupabaseDatabase {
     const current = await this.getLeads();
     const updatedList = current.map(l => l.id === id ? { ...l, ...updated } : l);
     this.saveLocal('hitech_v2_leads', updatedList);
+  }
+
+  async markLeadAsLost(id, { lossReason, lossRemark }) {
+    const today = new Date().toISOString().split('T')[0];
+    await this.updateLead(id, {
+      status: 'Lost',
+      lossReason: lossReason || 'Other',
+      lossRemark: lossRemark || '',
+      lossDate: today
+    });
   }
 
   async deleteLead(id) {
@@ -200,13 +290,13 @@ class SupabaseDatabase {
     const currentCusts = await this.getCustomers();
     this.saveLocal('hitech_v2_customers', [formattedCust, ...currentCusts]);
 
-    // Auto-generate 3 recurring services (+2m, +6m, +10m)
-    await this.generateThreeServicesForCustomer(formattedCust);
+    // Create Initial Service for Field Engineer
+    await this.generateInitialServiceForCustomer(formattedCust);
 
     return formattedCust;
   }
 
-  // Save Direct Customer Sale (with auto 3 service reminders: +2m, +6m, +10m)
+  // Save Direct Customer Sale (Creates initial service for Field Engineer)
   async addCustomerSale(saleData, currentUser = null) {
     const custId = `CUST-${Date.now().toString().slice(-4)}`;
     const installDate = saleData.installationDate || new Date().toISOString().split('T')[0];
@@ -251,90 +341,62 @@ class SupabaseDatabase {
     const currentCusts = await this.getCustomers();
     this.saveLocal('hitech_v2_customers', [formattedCust, ...currentCusts]);
 
-    // Auto-generate 3 recurring services (+2m, +6m, +10m)
-    await this.generateThreeServicesForCustomer(formattedCust);
+    // Create Initial Service for Field Engineer
+    await this.generateInitialServiceForCustomer(formattedCust);
 
     return formattedCust;
   }
 
-  // Helper to generate 3 services (+2 months, +6 months, +10 months)
-  async generateThreeServicesForCustomer(customer) {
-    const installDate = new Date(customer.installationDate || Date.now());
+  // Initial Service Creation (Dynamic Next Service cycle driven by Engineer)
+  async generateInitialServiceForCustomer(customer) {
+    const installDate = customer.installationDate || new Date().toISOString().split('T')[0];
+    const initialId = `SRV-${Date.now().toString().slice(-4)}`;
 
-    // Function to calculate exact future date
-    const addMonths = (date, months) => {
-      const d = new Date(date);
-      d.setMonth(d.getMonth() + months);
-      return d.toISOString().split('T')[0];
+    const initialService = {
+      id: initialId,
+      customer_id: customer.id,
+      customer_name: customer.customerName,
+      company: customer.company,
+      product: customer.purchasedProduct,
+      service_name: 'Service #1 (First Inspection & Commissioning)',
+      scheduled_date: installDate,
+      status: 'Upcoming',
+      assigned_engineer: customer.assignedEngineer || 'Sanjay Patel',
+      work_done: '',
+      parts_replaced: '',
+      completion_date: '',
+      next_service_date: '',
+      notes: 'Initial commissioning service. Engineer to log work done / parts changed and schedule next service date.'
     };
-
-    const date2M = addMonths(installDate, 2);
-    const date6M = addMonths(installDate, 6);
-    const date10M = addMonths(installDate, 10);
-
-    const autoServices = [
-      {
-        id: `SRV-${Date.now()}-1`,
-        customer_id: customer.id,
-        customer_name: customer.customerName,
-        company: customer.company,
-        product: customer.purchasedProduct,
-        service_name: 'Service #1 (2-Month Mandatory Inspection & Oil Check)',
-        scheduled_date: date2M,
-        status: 'Upcoming',
-        assigned_engineer: customer.assignedEngineer || 'Sanjay Patel',
-        notes: 'Inspect filter, check pressure ratio, clear condensate drain.'
-      },
-      {
-        id: `SRV-${Date.now()}-2`,
-        customer_id: customer.id,
-        customer_name: customer.customerName,
-        company: customer.company,
-        product: customer.purchasedProduct,
-        service_name: 'Service #2 (6-Month Mid-Term Preventative Maintenance)',
-        scheduled_date: date6M,
-        status: 'Upcoming',
-        assigned_engineer: customer.assignedEngineer || 'Sanjay Patel',
-        notes: 'Replace air intake filter element, tighten electrical connections.'
-      },
-      {
-        id: `SRV-${Date.now()}-3`,
-        customer_id: customer.id,
-        customer_name: customer.customerName,
-        company: customer.company,
-        product: customer.purchasedProduct,
-        service_name: 'Service #3 (10-Month Annual Overhaul & AMC Renewal)',
-        scheduled_date: date10M,
-        status: 'Upcoming',
-        assigned_engineer: customer.assignedEngineer || 'Sanjay Patel',
-        notes: 'Full system audit, coolant replacement, renew warranty/AMC contract.'
-      }
-    ];
 
     if (isSupabaseConfigured()) {
       try {
-        await supabase.from('services').insert(autoServices);
+        await supabase.from('services').insert([initialService]);
       } catch (e) {
-        console.error('Supabase insert auto services error:', e);
+        console.error('Supabase insert initial service error:', e);
       }
     }
 
-    const currentServices = await this.getServices();
-    const formattedServices = autoServices.map(s => ({
-      id: s.id,
-      customerId: s.customer_id,
-      customerName: s.customer_name,
-      company: s.company,
-      product: s.product,
-      serviceName: s.service_name,
-      scheduledDate: s.scheduled_date,
-      status: s.status,
-      assignedEngineer: s.assigned_engineer,
-      notes: s.notes
-    }));
+    const formatted = {
+      id: initialId,
+      customerId: customer.id,
+      customerName: customer.customerName,
+      company: customer.company,
+      product: customer.purchasedProduct,
+      serviceName: initialService.service_name,
+      scheduledDate: initialService.scheduled_date,
+      status: 'Upcoming',
+      assignedEngineer: initialService.assigned_engineer,
+      workDone: '',
+      partsReplaced: '',
+      completionDate: '',
+      nextServiceDate: '',
+      notes: initialService.notes
+    };
 
-    this.saveLocal('hitech_v2_services', [...formattedServices, ...currentServices]);
-    return formattedServices;
+    const currentServices = await this.getServices();
+    this.saveLocal('hitech_v2_services', [formatted, ...currentServices]);
+    return [formatted];
   }
 
   // Save Lead to Future Opportunity Vault
@@ -368,7 +430,7 @@ class SupabaseDatabase {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (data && data.length > 0) {
+        if (data) {
           return data.map(o => ({
             id: o.id,
             customerName: o.customer_name,
@@ -455,7 +517,7 @@ class SupabaseDatabase {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (data && data.length > 0) {
+        if (data) {
           return data.map(c => ({
             id: c.id,
             customerName: c.customer_name,
@@ -507,7 +569,7 @@ class SupabaseDatabase {
           .order('scheduled_date', { ascending: true });
 
         if (error) throw error;
-        if (data && data.length > 0) {
+        if (data) {
           return data.map(s => ({
             id: s.id,
             customerId: s.customer_id,
@@ -518,19 +580,210 @@ class SupabaseDatabase {
             scheduledDate: s.scheduled_date,
             status: s.status,
             assignedEngineer: s.assigned_engineer,
-            notes: s.notes
+            workDone: s.work_done || s.workDone || '',
+            partsReplaced: s.parts_replaced || s.partsReplaced || '',
+            completionDate: s.completion_date || s.completionDate || '',
+            nextServiceDate: s.next_service_date || s.nextServiceDate || '',
+            engineerNotes: s.engineer_notes || s.engineerNotes || '',
+            notes: s.notes || ''
           }));
         }
       } catch (e) {
         console.warn('Supabase fetch services error:', e);
       }
     }
-    return this.getLocal('hitech_v2_services', []);
+
+    const fallbackServices = [
+      {
+        id: 'SRV-101',
+        customerId: 'CUST-101',
+        customerName: 'Dharmesh Joshi',
+        company: 'Surat Diamond Craft',
+        product: '50 HP Screw Air Compressor',
+        serviceName: 'Service #1 (First Inspection & Commissioning)',
+        scheduledDate: '2026-08-25',
+        completionDate: '2026-08-25',
+        status: 'Completed',
+        assignedEngineer: 'Sanjay Patel',
+        workDone: 'Replaced primary air filter cartridge, checked discharge pressure (8.5 bar), flushed condensate drain.',
+        partsReplaced: 'Air Filter Cartridge (Part #AF-50HP)',
+        nextServiceDate: '2026-11-25',
+        engineerNotes: 'Compressor operating within optimal temp (78°C). Advised customer on weekly filter cleaning.'
+      },
+      {
+        id: 'SRV-102',
+        customerId: 'CUST-101',
+        customerName: 'Dharmesh Joshi',
+        company: 'Surat Diamond Craft',
+        product: '50 HP Screw Air Compressor',
+        serviceName: 'Service #2 (Scheduled Maintenance)',
+        scheduledDate: '2026-11-25',
+        completionDate: '',
+        status: 'Upcoming',
+        assignedEngineer: 'Sanjay Patel',
+        workDone: '',
+        partsReplaced: '',
+        nextServiceDate: '',
+        notes: 'Next service scheduled by Sanjay Patel following Service #1. Focus: Oil filter change & belt tension check.'
+      },
+      {
+        id: 'SRV-103',
+        customerId: 'CUST-102',
+        customerName: 'Rajesh Shah',
+        company: 'Reliance Textiles Ltd',
+        product: '75 HP VFD Screw Compressor',
+        serviceName: 'Service #1 (First Inspection & Commissioning)',
+        scheduledDate: '2026-09-05',
+        completionDate: '',
+        status: 'Upcoming',
+        assignedEngineer: 'Sanjay Patel',
+        workDone: '',
+        partsReplaced: '',
+        nextServiceDate: '',
+        notes: 'Initial inspection upon installation. Engineer to log work done / parts changed and schedule next service date.'
+      }
+    ];
+
+    return this.getLocal('hitech_v2_services', fallbackServices);
   }
 
   async getServicesByCustomer(customerId) {
     const services = await this.getServices();
     return services.filter(s => s.customerId === customerId);
+  }
+
+  async completeService(serviceId, report) {
+    const services = await this.getServices();
+    const service = services.find(s => s.id === serviceId);
+    if (!service) return null;
+
+    const completionDate = report.completionDate || new Date().toISOString().split('T')[0];
+    const nextServiceDate = report.nextServiceDate || '';
+    const workDone = report.workDone || '';
+    const partsReplaced = report.partsReplaced || '';
+    const engineerNotes = report.engineerNotes || '';
+    const assignedEngineer = report.assignedEngineer || service.assignedEngineer || 'Sanjay Patel';
+
+    // Update current service as Completed
+    const updatedService = {
+      ...service,
+      status: 'Completed',
+      workDone: workDone,
+      partsReplaced: partsReplaced,
+      completionDate: completionDate,
+      nextServiceDate: nextServiceDate,
+      engineerNotes: engineerNotes,
+      assignedEngineer: assignedEngineer,
+      notes: engineerNotes || service.notes
+    };
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('services').update({
+          status: 'Completed',
+          work_done: workDone,
+          parts_replaced: partsReplaced,
+          completion_date: completionDate,
+          next_service_date: nextServiceDate,
+          notes: engineerNotes || service.notes
+        }).eq('id', serviceId);
+      } catch (e) {
+        console.error('Supabase complete service error:', e);
+      }
+    }
+
+    let updatedList = services.map(s => s.id === serviceId ? updatedService : s);
+
+    // If nextServiceDate is provided, create the Next Service record!
+    if (nextServiceDate) {
+      const nextServiceId = `SRV-${Date.now().toString().slice(-4)}`;
+      const completedCount = updatedList.filter(s => s.customerId === service.customerId && s.status === 'Completed').length;
+      const nextServiceName = `Service #${completedCount + 1} (Scheduled Maintenance)`;
+
+      const newNextService = {
+        id: nextServiceId,
+        customerId: service.customerId,
+        customerName: service.customerName,
+        company: service.company,
+        product: service.product,
+        serviceName: nextServiceName,
+        scheduledDate: nextServiceDate,
+        status: 'Upcoming',
+        assignedEngineer: assignedEngineer,
+        workDone: '',
+        partsReplaced: '',
+        completionDate: '',
+        nextServiceDate: '',
+        notes: `Scheduled following previous service completed on ${completionDate}. Notes: ${engineerNotes || 'Routine inspection & parts check.'}`
+      };
+
+      if (isSupabaseConfigured()) {
+        try {
+          await supabase.from('services').insert([{
+            id: nextServiceId,
+            customer_id: service.customerId,
+            customer_name: service.customerName,
+            company: service.company,
+            product: service.product,
+            service_name: nextServiceName,
+            scheduled_date: nextServiceDate,
+            status: 'Upcoming',
+            assigned_engineer: assignedEngineer,
+            notes: newNextService.notes
+          }]);
+        } catch (e) {
+          console.error('Supabase add next service error:', e);
+        }
+      }
+
+      updatedList = [newNextService, ...updatedList];
+    }
+
+    this.saveLocal('hitech_v2_services', updatedList);
+    return updatedService;
+  }
+
+  async addService(serviceData) {
+    const id = `SRV-${Date.now().toString().slice(-4)}`;
+    const newService = {
+      id,
+      customerId: serviceData.customerId,
+      customerName: serviceData.customerName,
+      company: serviceData.company,
+      product: serviceData.product,
+      serviceName: serviceData.serviceName || 'Scheduled Maintenance Service',
+      scheduledDate: serviceData.scheduledDate || new Date().toISOString().split('T')[0],
+      status: serviceData.status || 'Upcoming',
+      assignedEngineer: serviceData.assignedEngineer || 'Sanjay Patel',
+      workDone: serviceData.workDone || '',
+      partsReplaced: serviceData.partsReplaced || '',
+      completionDate: serviceData.completionDate || '',
+      nextServiceDate: serviceData.nextServiceDate || '',
+      notes: serviceData.notes || ''
+    };
+
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase.from('services').insert([{
+          id,
+          customer_id: newService.customerId,
+          customer_name: newService.customerName,
+          company: newService.company,
+          product: newService.product,
+          service_name: newService.serviceName,
+          scheduled_date: newService.scheduledDate,
+          status: newService.status,
+          assigned_engineer: newService.assignedEngineer,
+          notes: newService.notes
+        }]);
+      } catch (e) {
+        console.error('Supabase add service error:', e);
+      }
+    }
+
+    const current = await this.getServices();
+    this.saveLocal('hitech_v2_services', [newService, ...current]);
+    return newService;
   }
 
   async updateServiceStatus(serviceId, newStatus) {
