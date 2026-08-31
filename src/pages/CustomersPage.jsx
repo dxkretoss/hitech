@@ -9,7 +9,7 @@ import { Input } from '../components/ui/Input.jsx';
 import { Table } from '../components/ui/Table.jsx';
 import { Modal } from '../components/ui/Modal.jsx';
 import { ConfirmModal } from '../components/ui/ConfirmModal.jsx';
-import { Search, ChevronRight, Trash2, ShoppingBag, Plus, Users, User, ShieldCheck } from 'lucide-react';
+import { Search, ChevronRight, Trash2, ShoppingBag, Plus, Users, User, ShieldCheck, Building2 } from 'lucide-react';
 import { DataPrivacyShield } from '../components/common/DataPrivacyShield.jsx';
 import { toast } from 'sonner';
 
@@ -79,8 +79,8 @@ export const CustomersPage = () => {
     // If matching machine stock is found in the dispatch branch, deduct 1 unit
     const matchingStock = machineStock.find(
       s => s.branch === saleFormData.dispatchBranch &&
-      (s.itemName.toLowerCase().includes(saleFormData.purchasedProduct.toLowerCase()) ||
-       saleFormData.purchasedProduct.toLowerCase().includes(s.itemName.toLowerCase()))
+        (s.itemName.toLowerCase().includes(saleFormData.purchasedProduct.toLowerCase()) ||
+          saleFormData.purchasedProduct.toLowerCase().includes(s.itemName.toLowerCase()))
     );
     if (matchingStock && matchingStock.quantity > 0) {
       await db.adjustStockQuantity(matchingStock.id, {
@@ -292,17 +292,15 @@ export const CustomersPage = () => {
                       key={br}
                       type="button"
                       onClick={() => setSaleFormData({ ...saleFormData, dispatchBranch: br })}
-                      className={`p-2 rounded-xl border text-xs font-bold transition-all text-center ${
-                        saleFormData.dispatchBranch === br
+                      className={`p-2 rounded-xl border text-xs font-bold transition-all text-center ${saleFormData.dispatchBranch === br
                           ? 'bg-[#3B318A] text-white border-[#3B318A] shadow-xs'
                           : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                      }`}
+                        }`}
                     >
                       <span className="block">{br} Branch</span>
                       <span
-                        className={`text-[10px] font-semibold block mt-0.5 ${
-                          saleFormData.dispatchBranch === br ? 'text-indigo-200' : 'text-emerald-700'
-                        }`}
+                        className={`text-[10px] font-semibold block mt-0.5 ${saleFormData.dispatchBranch === br ? 'text-indigo-200' : 'text-emerald-700'
+                          }`}
                       >
                         {branchStockCount} Machines
                       </span>
