@@ -8,8 +8,14 @@ export const Input = ({
   type = 'text',
   placeholder = '',
   required = false,
-  className = ''
+  className = '',
+  min,
+  max,
+  ...rest
 }) => {
+  const todayStr = new Date().toISOString().split('T')[0];
+  const computedMin = min !== undefined ? min : (type === 'date' ? todayStr : undefined);
+
   return (
     <div className="space-y-1.5 w-full">
       {label && (
@@ -25,6 +31,9 @@ export const Input = ({
         onChange={onChange}
         placeholder={placeholder}
         required={required}
+        min={computedMin}
+        max={max}
+        {...rest}
         className={`w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] focus:border-[#3B318A] outline-none transition-all ${className}`}
       />
     </div>

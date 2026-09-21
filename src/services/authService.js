@@ -11,7 +11,7 @@ import { sanitizeEmail, sanitizePassword, sanitizeText } from '../utils/sanitize
 // Helper to check if a user has Super Admin privileges
 export const isSuperAdminUser = (user) => {
   if (!user) return false;
-  return user.role === 'Owner' || user.role === 'SuperAdmin';
+  return user.role === 'Owner' || user.role === 'SuperAdmin' || user.role === 'Admin';
 };
 
 // Custom function: Register a new user with specified role and branch

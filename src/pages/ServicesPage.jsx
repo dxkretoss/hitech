@@ -7,6 +7,7 @@ import { Table } from '../components/ui/Table.jsx';
 import { Modal } from '../components/ui/Modal.jsx';
 import { CompleteServiceModal } from '../components/services/CompleteServiceModal.jsx';
 import { ScheduleServiceModal } from '../components/services/ScheduleServiceModal.jsx';
+import { NewInstallationModal } from '../components/services/NewInstallationModal.jsx';
 import { AddStockItemModal } from '../components/stock/AddStockItemModal.jsx';
 import { AdjustStockModal } from '../components/stock/AdjustStockModal.jsx';
 import { TransferStockModal } from '../components/stock/TransferStockModal.jsx';
@@ -31,7 +32,8 @@ import {
   ArrowRightLeft,
   SlidersHorizontal,
   Trash2,
-  Layers
+  Layers,
+  ShoppingBag
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -40,7 +42,7 @@ export const ServicesPage = () => {
   const userBranch = currentUser?.branch || 'Surat';
   const isAdmin = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
 
-  // Main View: 'SCHEDULES' | 'SPARE_PARTS_STOCK'
+  // Main View: 'SCHEDULES' | 'INSTALLATIONS' | 'SPARE_PARTS_STOCK'
   const [mainView, setMainView] = useState('SCHEDULES');
 
   // Service Schedules state
@@ -49,17 +51,25 @@ export const ServicesPage = () => {
   const [activeTab, setActiveTab] = useState('All');
   const [serviceSearchTerm, setServiceSearchTerm] = useState('');
 
+  // Machine Installations state
+  const [installations, setInstallations] = useState([]);
+  const [loadingInstallations, setLoadingInstallations] = useState(true);
+  const [installationSearchTerm, setInstallationSearchTerm] = useState('');
+  const [installationBranchFilter, setInstallationBranchFilter] = useState('ALL');
+  const [installationStatusFilter, setInstallationStatusFilter] = useState('ALL'); // 'ALL' | 'COMMISSIONED' | 'PENDING'
+
   // Spare Parts Stock state
   const [spareParts, setSpareParts] = useState([]);
   const [loadingStock, setLoadingStock] = useState(true);
   const [stockSearchTerm, setStockSearchTerm] = useState('');
-  const [branchFilter, setBranchFilter] = useState(isAdmin ? 'ALL' : userBranch);
+  const [branchFilter, setBranchFilter] = useState('ALL');
   const [velocityFilter, setVelocityFilter] = useState('ALL'); // 'ALL' | 'FAST_MOVING' | 'LOW_STOCK'
 
   // Modals state
   const [selectedServiceToComplete, setSelectedServiceToComplete] = useState(null);
   const [completeModalOpen, setCompleteModalOpen] = useState(false);
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
+  const [newInstallationModalOpen, setNewInstallationModalOpen] = useState(false);
   const [viewReportService, setViewReportService] = useState(null);
 
   // Stock Modals
@@ -76,6 +86,13 @@ export const ServicesPage = () => {
     setLoadingServices(false);
   };
 
+  const loadInstallations = async () => {
+    setLoadingInstallations(true);
+    const data = await db.getCustomers();
+    setInstallations(data || []);
+    setLoadingInstallations(false);
+  };
+
   const loadSparePartsStock = async () => {
     setLoadingStock(true);
     const allStock = await db.getStockItems();
@@ -86,6 +103,7 @@ export const ServicesPage = () => {
 
   useEffect(() => {
     loadServices();
+    loadInstallations();
     loadSparePartsStock();
   }, []);
 
@@ -97,6 +115,13 @@ export const ServicesPage = () => {
   const handleServiceCompleted = async (serviceId, report) => {
     await db.completeService(serviceId, report);
     toast.success(`Service report saved! Next service scheduled for ${report.nextServiceDate}.`);
+    await loadServices();
+    await loadInstallations();
+    await loadSparePartsStock();
+  };
+
+  const handleInstallationCreated = async () => {
+    await loadInstallations();
     await loadServices();
     await loadSparePartsStock();
   };
@@ -162,7 +187,6 @@ export const ServicesPage = () => {
   // Filtered Services
   const filteredServices = services.filter((s) => {
     if (activeTab !== 'All' && s.status !== activeTab) return false;
-    if (!isAdmin && s.branch && s.branch !== userBranch && s.assignedEngineer !== currentUser?.name) return false;
 
     if (serviceSearchTerm) {
       const q = serviceSearchTerm.toLowerCase();
@@ -180,11 +204,37 @@ export const ServicesPage = () => {
     return true;
   });
 
+  // Filtered Machine Installations
+  const filteredInstallations = installations.filter((inst) => {
+    if (installationBranchFilter !== 'ALL') {
+      if ((inst.branch || 'Surat') !== installationBranchFilter) return false;
+    }
+
+    // Status filter
+    const initialSrv = services.find((s) => s.customerId === inst.id || s.customerName === inst.customerName);
+    const isCompleted = initialSrv?.status === 'Completed';
+
+    if (installationStatusFilter === 'COMMISSIONED' && !isCompleted) return false;
+    if (installationStatusFilter === 'PENDING' && isCompleted) return false;
+
+    if (installationSearchTerm) {
+      const q = installationSearchTerm.toLowerCase();
+      return (
+        (inst.customerName || '').toLowerCase().includes(q) ||
+        (inst.company || '').toLowerCase().includes(q) ||
+        (inst.purchasedProduct || '').toLowerCase().includes(q) ||
+        (inst.assignedEngineer || '').toLowerCase().includes(q) ||
+        (inst.phone || '').includes(q) ||
+        (inst.address || '').toLowerCase().includes(q) ||
+        (inst.branch || '').toLowerCase().includes(q)
+      );
+    }
+    return true;
+  });
+
   // Filtered Spare Parts Stock
   const filteredSpareParts = spareParts.filter((item) => {
-    if (!isAdmin) {
-      if (item.branch !== userBranch) return false;
-    } else if (branchFilter !== 'ALL') {
+    if (branchFilter !== 'ALL') {
       if (item.branch !== branchFilter) return false;
     }
 
@@ -213,6 +263,15 @@ export const ServicesPage = () => {
   const suratPartsCount = spareParts.filter((p) => p.branch === 'Surat').length;
   const morbiPartsCount = spareParts.filter((p) => p.branch === 'Morbi').length;
   const rajkotPartsCount = spareParts.filter((p) => p.branch === 'Rajkot').length;
+
+  // Installation metrics
+  const suratInstallCount = installations.filter((i) => (i.branch || 'Surat') === 'Surat').length;
+  const morbiInstallCount = installations.filter((i) => i.branch === 'Morbi').length;
+  const rajkotInstallCount = installations.filter((i) => i.branch === 'Rajkot').length;
+  const commissionedCount = installations.filter((i) => {
+    const srv = services.find((s) => s.customerId === i.id || s.customerName === i.customerName);
+    return srv?.status === 'Completed';
+  }).length;
 
   const getStatusBadge = (status) => {
     switch (status) {
@@ -340,6 +399,126 @@ export const ServicesPage = () => {
     }
   ];
 
+  const installationColumns = [
+    {
+      header: 'Customer & Plant Site',
+      cell: (row) => (
+        <div>
+          <p className="font-bold text-gray-900">{row.customerName}</p>
+          <p className="text-xs text-[#3B318A] font-semibold">{row.company}</p>
+          {row.address && (
+            <p className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[220px]" title={row.address}>
+              {row.address}
+            </p>
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'Installed Machine Model',
+      cell: (row) => (
+        <div>
+          <span className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+            <Wrench className="w-3.5 h-3.5 text-emerald-600" />
+            {row.purchasedProduct || '50 HP Screw Air Compressor'}
+          </span>
+          {row.serialNumber && (
+            <p className="text-[10px] text-gray-500 font-mono mt-0.5">S/N: {row.serialNumber}</p>
+          )}
+        </div>
+      )
+    },
+    {
+      header: 'Branch',
+      cell: (row) => {
+        const colors = {
+          Surat: 'bg-indigo-50 text-indigo-800 border-indigo-200',
+          Morbi: 'bg-amber-50 text-amber-900 border-amber-200',
+          Rajkot: 'bg-teal-50 text-teal-800 border-teal-200'
+        };
+        const branchName = row.branch || 'Surat';
+        return (
+          <span className={`inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-lg border ${colors[branchName] || 'bg-gray-50'}`}>
+            <Building2 className="w-3.5 h-3.5" />
+            {branchName}
+          </span>
+        );
+      }
+    },
+    {
+      header: 'Contact Phone',
+      cell: (row) => <span className="text-xs font-semibold text-gray-700">{row.phone}</span>
+    },
+    {
+      header: 'Installation Date',
+      cell: (row) => (
+        <span className="inline-flex items-center gap-1 text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-lg">
+          <Calendar className="w-3.5 h-3.5 text-[#3B318A]" />
+          {row.installationDate}
+        </span>
+      )
+    },
+    {
+      header: 'Assigned Field Engineer',
+      cell: (row) => (
+        <span className="text-xs font-semibold text-emerald-900 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200 flex items-center gap-1 w-fit">
+          <User className="w-3 h-3 text-emerald-700" />
+          {row.assignedEngineer || 'Sanjay Patel'}
+        </span>
+      )
+    },
+    {
+      header: 'Commissioning Status',
+      cell: (row) => {
+        const initialSrv = services.find((s) => s.customerId === row.id || s.customerName === row.customerName);
+        const isCompleted = initialSrv?.status === 'Completed';
+
+        return isCompleted ? (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            Commissioned
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
+            <Clock className="w-3.5 h-3.5 text-amber-600" />
+            1st Inspection Due
+          </span>
+        );
+      }
+    },
+    {
+      header: 'Actions',
+      cell: (row) => {
+        const initialSrv = services.find((s) => s.customerId === row.id || s.customerName === row.customerName);
+        const isCompleted = initialSrv?.status === 'Completed';
+
+        return (
+          <div className="flex items-center gap-1.5">
+            {initialSrv && !isCompleted ? (
+              <Button
+                size="sm"
+                variant="success"
+                icon={CheckCircle2}
+                onClick={() => handleOpenCompleteModal(initialSrv)}
+              >
+                Log 1st Service
+              </Button>
+            ) : (
+              <Button
+                size="sm"
+                variant="outline"
+                icon={Plus}
+                onClick={() => setScheduleModalOpen(true)}
+              >
+                Schedule Service
+              </Button>
+            )}
+          </div>
+        );
+      }
+    }
+  ];
+
   const stockColumns = [
     {
       header: 'Spare Part & SKU Code',
@@ -460,7 +639,7 @@ export const ServicesPage = () => {
               setSelectedPart(row);
               setDeletePartModalOpen(true);
             }}
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
             title="Delete Part"
           >
             <Trash2 className="w-4 h-4" />
@@ -477,18 +656,24 @@ export const ServicesPage = () => {
         <div>
           <h1 className="text-2xl font-black flex items-center gap-2">
             <Wrench className="w-6 h-6 text-emerald-400" />
-            Field Engineer Service & Branch Spare Parts Stock
+            Field Engineering, Installations & Spares Center
           </h1>
           <p className="text-xs text-emerald-100 mt-1 max-w-2xl">
-            Engineers record service work done, parts replaced (e.g. Air filter), next service dates, and track <strong>Surat, Morbi, Rajkot Branch Spare Parts Stock & 1-Year Consumption Velocity</strong>.
+            Register <strong>New Machine Installations</strong>, record commissioning & service reports, schedule preventative maintenance, and manage branch spare parts inventory.
           </p>
         </div>
         <div className="flex items-center gap-2.5">
-          {mainView === 'SCHEDULES' ? (
+          {mainView === 'SCHEDULES' && (
             <Button onClick={() => setScheduleModalOpen(true)} variant="white" icon={Plus}>
               Schedule Service
             </Button>
-          ) : (
+          )}
+          {mainView === 'INSTALLATIONS' && (
+            <Button onClick={() => setNewInstallationModalOpen(true)} variant="white" icon={Plus}>
+              Record New Installation
+            </Button>
+          )}
+          {mainView === 'SPARE_PARTS_STOCK' && (
             <Button onClick={() => setAddPartModalOpen(true)} variant="white" icon={Plus}>
               Add Spare Part
             </Button>
@@ -496,11 +681,11 @@ export const ServicesPage = () => {
         </div>
       </div>
 
-      {/* Primary Workspace View Switcher Tabs */}
-      <div className="flex items-center gap-3 bg-gray-100 p-1.5 rounded-2xl w-fit">
+      {/* Primary Workspace View Switcher Tabs (3 tabs) */}
+      <div className="flex flex-wrap items-center gap-2 bg-gray-100 p-1.5 rounded-2xl w-fit">
         <button
           onClick={() => setMainView('SCHEDULES')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             mainView === 'SCHEDULES'
               ? 'bg-emerald-700 text-white shadow-md'
               : 'text-gray-600 hover:text-gray-900'
@@ -511,8 +696,20 @@ export const ServicesPage = () => {
         </button>
 
         <button
+          onClick={() => setMainView('INSTALLATIONS')}
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            mainView === 'INSTALLATIONS'
+              ? 'bg-emerald-700 text-white shadow-md'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <Layers className="w-4 h-4" />
+          New Machine Installations ({installations.length})
+        </button>
+
+        <button
           onClick={() => setMainView('SPARE_PARTS_STOCK')}
-          className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 ${
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             mainView === 'SPARE_PARTS_STOCK'
               ? 'bg-emerald-700 text-white shadow-md'
               : 'text-gray-600 hover:text-gray-900'
@@ -530,7 +727,7 @@ export const ServicesPage = () => {
           <div className="flex items-center gap-2 border-b border-gray-200 pb-3 overflow-x-auto">
             <button
               onClick={() => setActiveTab('All')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'All'
                   ? 'bg-[#3B318A] text-white shadow-xs'
                   : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -540,7 +737,7 @@ export const ServicesPage = () => {
             </button>
             <button
               onClick={() => setActiveTab('Upcoming')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'Upcoming'
                   ? 'bg-sky-600 text-white shadow-xs'
                   : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -550,7 +747,7 @@ export const ServicesPage = () => {
             </button>
             <button
               onClick={() => setActiveTab('Completed')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                 activeTab === 'Completed'
                   ? 'bg-emerald-600 text-white shadow-xs'
                   : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -581,7 +778,162 @@ export const ServicesPage = () => {
         </div>
       )}
 
-      {/* VIEW 2: BRANCH SPARE PARTS STOCK & 1-YEAR CONSUMPTION */}
+      {/* VIEW 2: NEW MACHINE INSTALLATIONS */}
+      {mainView === 'INSTALLATIONS' && (
+        <div className="space-y-4">
+          {/* Quick Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <Card className="p-4 bg-emerald-50/60 border border-emerald-100">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-emerald-800 uppercase">Total Machine Installations</span>
+                <Layers className="w-4 h-4 text-emerald-600" />
+              </div>
+              <span className="text-2xl font-black text-emerald-950 block mt-1">{installations.length}</span>
+              <span className="text-[10px] text-gray-500">Across all branch accounts</span>
+            </Card>
+
+            <Card className="p-4 bg-indigo-50/60 border border-indigo-100">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-[#3B318A] uppercase">Branch Distribution</span>
+                <Building2 className="w-4 h-4 text-[#3B318A]" />
+              </div>
+              <div className="flex items-center gap-1.5 mt-1.5 text-xs font-bold text-indigo-950">
+                <span>Surat: {suratInstallCount}</span>
+                <span>•</span>
+                <span>Morbi: {morbiInstallCount}</span>
+                <span>•</span>
+                <span>Rajkot: {rajkotInstallCount}</span>
+              </div>
+              <span className="text-[10px] text-gray-500">Client plant sites</span>
+            </Card>
+
+            <Card className="p-4 bg-emerald-50/60 border border-emerald-100">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-emerald-800 uppercase">Commissioned Units</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              </div>
+              <span className="text-2xl font-black text-emerald-700 block mt-1">{commissionedCount}</span>
+              <span className="text-[10px] text-emerald-600 font-semibold">1st inspection verified</span>
+            </Card>
+
+            <Card className="p-4 bg-amber-50/60 border border-amber-100">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-amber-800 uppercase">Pending 1st Service</span>
+                <Clock className="w-4 h-4 text-amber-600" />
+              </div>
+              <span className="text-2xl font-black text-amber-700 block mt-1">{installations.length - commissionedCount}</span>
+              <span className="text-[10px] text-amber-600 font-semibold">Engineer action needed</span>
+            </Card>
+          </div>
+
+          {/* Filters Bar */}
+          <div className="space-y-2.5">
+            <div className="flex items-center gap-2 border-b border-gray-200 pb-3 overflow-x-auto">
+              <button
+                onClick={() => setInstallationBranchFilter('ALL')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  installationBranchFilter === 'ALL'
+                    ? 'bg-[#3B318A] text-white shadow-xs'
+                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                All Branches ({installations.length})
+              </button>
+              <button
+                onClick={() => setInstallationBranchFilter('Surat')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  installationBranchFilter === 'Surat'
+                    ? 'bg-indigo-700 text-white shadow-xs'
+                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                Surat ({suratInstallCount})
+              </button>
+              <button
+                onClick={() => setInstallationBranchFilter('Morbi')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  installationBranchFilter === 'Morbi'
+                    ? 'bg-amber-700 text-white shadow-xs'
+                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                Morbi ({morbiInstallCount})
+              </button>
+              <button
+                onClick={() => setInstallationBranchFilter('Rajkot')}
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                  installationBranchFilter === 'Rajkot'
+                    ? 'bg-teal-700 text-white shadow-xs'
+                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                }`}
+              >
+                Rajkot ({rajkotInstallCount})
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                onClick={() => setInstallationStatusFilter('ALL')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  installationStatusFilter === 'ALL'
+                    ? 'bg-gray-900 text-white'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                All Installations
+              </button>
+              <button
+                onClick={() => setInstallationStatusFilter('COMMISSIONED')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  installationStatusFilter === 'COMMISSIONED'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
+                }`}
+              >
+                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                Commissioned & Serviced ({commissionedCount})
+              </button>
+              <button
+                onClick={() => setInstallationStatusFilter('PENDING')}
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
+                  installationStatusFilter === 'PENDING'
+                    ? 'bg-amber-600 text-white'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
+                }`}
+              >
+                <Clock className="w-3 h-3 text-amber-600" />
+                Pending 1st Service ({installations.length - commissionedCount})
+              </button>
+            </div>
+          </div>
+
+          <Card className="space-y-4">
+            <div className="relative">
+              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+              <input
+                type="text"
+                value={installationSearchTerm}
+                onChange={(e) => setInstallationSearchTerm(e.target.value)}
+                placeholder="Search installations by customer, company, machine model, engineer, address..."
+                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
+              />
+            </div>
+
+            {loadingInstallations ? (
+              <div className="py-8 text-center text-xs text-gray-400">Loading machine installation registry...</div>
+            ) : (
+              <Table
+                columns={installationColumns}
+                data={filteredInstallations}
+                emptyMessage="No machine installation records found matching the filter."
+              />
+            )}
+          </Card>
+        </div>
+      )}
+
+      {/* VIEW 3: BRANCH SPARE PARTS STOCK & 1-YEAR CONSUMPTION */}
       {mainView === 'SPARE_PARTS_STOCK' && (
         <div className="space-y-4">
           {/* Quick Metrics */}
@@ -636,7 +988,7 @@ export const ServicesPage = () => {
             <div className="flex items-center gap-2 border-b border-gray-200 pb-3 overflow-x-auto">
               <button
                 onClick={() => setBranchFilter('ALL')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   branchFilter === 'ALL'
                     ? 'bg-[#3B318A] text-white shadow-xs'
                     : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -647,7 +999,7 @@ export const ServicesPage = () => {
               </button>
               <button
                 onClick={() => setBranchFilter('Surat')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   branchFilter === 'Surat'
                     ? 'bg-indigo-700 text-white shadow-xs'
                     : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -657,7 +1009,7 @@ export const ServicesPage = () => {
               </button>
               <button
                 onClick={() => setBranchFilter('Morbi')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   branchFilter === 'Morbi'
                     ? 'bg-amber-700 text-white shadow-xs'
                     : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -667,7 +1019,7 @@ export const ServicesPage = () => {
               </button>
               <button
                 onClick={() => setBranchFilter('Rajkot')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
                   branchFilter === 'Rajkot'
                     ? 'bg-teal-700 text-white shadow-xs'
                     : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
@@ -680,7 +1032,7 @@ export const ServicesPage = () => {
             <div className="flex flex-wrap items-center gap-2">
               <button
                 onClick={() => setVelocityFilter('ALL')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   velocityFilter === 'ALL'
                     ? 'bg-gray-900 text-white'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -690,7 +1042,7 @@ export const ServicesPage = () => {
               </button>
               <button
                 onClick={() => setVelocityFilter('FAST_MOVING')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                   velocityFilter === 'FAST_MOVING'
                     ? 'bg-rose-600 text-white'
                     : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
@@ -701,7 +1053,7 @@ export const ServicesPage = () => {
               </button>
               <button
                 onClick={() => setVelocityFilter('LOW_STOCK')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
                   velocityFilter === 'LOW_STOCK'
                     ? 'bg-red-700 text-white'
                     : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
@@ -749,7 +1101,18 @@ export const ServicesPage = () => {
       <ScheduleServiceModal
         isOpen={scheduleModalOpen}
         onClose={() => setScheduleModalOpen(false)}
-        onServiceCreated={loadServices}
+        onServiceCreated={async () => {
+          await loadServices();
+          await loadInstallations();
+        }}
+      />
+
+      {/* New Machine Installation Modal */}
+      <NewInstallationModal
+        isOpen={newInstallationModalOpen}
+        onClose={() => setNewInstallationModalOpen(false)}
+        onInstallationCreated={handleInstallationCreated}
+        defaultBranch={installationBranchFilter !== 'ALL' ? installationBranchFilter : userBranch}
       />
 
       {/* Add Spare Part Modal */}

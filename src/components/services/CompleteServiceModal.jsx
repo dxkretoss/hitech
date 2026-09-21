@@ -275,6 +275,7 @@ export const CompleteServiceModal = ({
             </label>
             <input
               type="date"
+              min={new Date().toISOString().split('T')[0]}
               value={nextServiceDate}
               onChange={(e) => setNextServiceDate(e.target.value)}
               className="w-full h-[38px] px-3 py-2 text-sm font-bold text-[#3B318A] border border-indigo-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] bg-white outline-none"

@@ -23,14 +23,14 @@ export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isOwner = role === 'Owner' || role === 'SuperAdmin';
+  const isOwner = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
   const dashboardPath = isOwner ? '/admin/dashboard' : '/dashboard';
 
   const navItems = [
     { label: 'Dashboard', path: dashboardPath, icon: LayoutDashboard },
     { label: 'Leads', path: '/leads', icon: Briefcase, allowedRoles: ['Sales', 'Owner', 'SuperAdmin', 'Admin'] },
     { label: 'Future Opportunities', path: '/future-opportunities', icon: Sparkles, ownerOnly: true },
-    { label: 'Customers', path: '/customers', icon: Users },
+    { label: 'Customers', path: '/customers', icon: Users, ownerOnly: true },
     { label: 'Services', path: '/services', icon: Wrench, allowedRoles: ['Engineer', 'Owner', 'SuperAdmin', 'Admin'] },
     { label: 'Notifications', path: '/notifications', icon: Bell },
     { label: 'Profile', path: '/profile', icon: User }

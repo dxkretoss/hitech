@@ -6,6 +6,7 @@ import { Card } from '../components/ui/Card.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Modal } from '../components/ui/Modal.jsx';
+import { AdminAnalyticsCharts } from '../components/admin/AdminAnalyticsCharts.jsx';
 import {
   Users,
   Briefcase,
@@ -124,14 +125,6 @@ export const AdminDashboardPage = () => {
             Complete visibility of Sales Team Lead Submissions, Deferred Future Requirements, and Field Engineer Service Reminders.
           </p>
         </div>
-        <Button
-          variant="primary"
-          icon={UserPlus}
-          onClick={() => setShowAddModal(true)}
-          className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-black shadow-lg"
-        >
-          Add New Sales / Engineer Staff
-        </Button>
       </div>
 
       {/* Metric Cards */}
@@ -181,6 +174,14 @@ export const AdminDashboardPage = () => {
           <span className="text-[11px] text-gray-400">Service Reminders Active</span>
         </Card>
       </div>
+
+      {/* Visual Analytics Graphs for Sales, Customer Machine Base, and Services */}
+      <AdminAnalyticsCharts
+        leads={leads}
+        customers={customers}
+        services={services}
+        salesSummary={salesSummary}
+      />
 
       {/* REQUIREMENT CHECK: Sales Person Performance & Data Breakdown */}
       <Card className="p-6 space-y-4">

@@ -67,9 +67,9 @@ export const DashboardPage = () => {
   // --- SALES SPECIFIC DATA ---
   const activeLeads = leads.filter(l => l.status !== 'Won' && l.status !== 'Lost');
   const todaysFollowups = leads.filter(l => l.status !== 'Won' && l.status !== 'Lost');
-  const wonDeals = leads.filter(l => l.status === 'Won').length + customers.length;
+  const wonDeals = leads.filter(l => l.status === 'Won').length;
   const totalPipelineCount = leads.length;
-  const recentSalesCustomers = customers.slice(0, 5);
+  const recentWonDeals = leads.filter(l => l.status === 'Won').slice(0, 5);
   const futureReqCount = futureOpps.length + leads.filter(l => l.status === 'Future Requirement').length;
 
   // --- ENGINEER SPECIFIC DATA ---
@@ -121,24 +121,6 @@ export const DashboardPage = () => {
               Welcome back, <strong>{currentUser?.name || 'Field Engineer'}</strong>. Manage your scheduled machine inspections, preventative maintenance, and client site visits.
             </p>
           </div>
-          <div className="flex items-center gap-2.5 flex-wrap">
-            <Button
-              variant="primary"
-              icon={Wrench}
-              onClick={() => navigate('/services')}
-              className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-black shadow-lg"
-            >
-              Full Service Scheduler
-            </Button>
-            <Button
-              variant="primary"
-              icon={Users}
-              onClick={() => navigate('/customers')}
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black shadow-lg"
-            >
-              Customer Machine List
-            </Button>
-          </div>
         </div>
 
         {/* Engineer Stat Cards */}
@@ -178,13 +160,13 @@ export const DashboardPage = () => {
 
           <Card className="hover:border-teal-500 border-l-4 border-l-indigo-500">
             <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-gray-500 uppercase">Machine Accounts</span>
+              <span className="text-[11px] font-bold text-gray-500 uppercase">Assigned Services</span>
               <div className="p-2 rounded-xl bg-indigo-50 text-[#3B318A]">
-                <Building2 className="w-4 h-4" />
+                <Wrench className="w-4 h-4" />
               </div>
             </div>
-            <span className="text-2xl font-black text-gray-900 mt-2 block">{customers.length}</span>
-            <span className="text-[10px] text-gray-400">Installed Equipment</span>
+            <span className="text-2xl font-black text-gray-900 mt-2 block">{engineerServiceList.length}</span>
+            <span className="text-[10px] text-gray-400">Total Work Orders</span>
           </Card>
         </div>
 
@@ -281,22 +263,22 @@ export const DashboardPage = () => {
 
           {/* Right Column (1 col): Installed Customer Machine Base & Protocol */}
           <div className="space-y-6">
-            {/* Installed Customer Machine Directory */}
+            {/* Recent Service Assignments */}
             <Card className="p-5 space-y-3">
               <div className="flex items-center justify-between border-b pb-2 border-gray-100">
                 <h3 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                  <Building2 className="w-3.5 h-3.5 text-[#3B318A]" />
-                  Active Customer Accounts
+                  <Wrench className="w-3.5 h-3.5 text-[#3B318A]" />
+                  Service Orders Overview
                 </h3>
-                <span className="text-[10px] text-gray-400 font-bold">{customers.length} Accounts</span>
+                <span className="text-[10px] text-gray-400 font-bold">{engineerServiceList.length} Tasks</span>
               </div>
 
               <div className="space-y-2">
-                {recentSalesCustomers.map((c) => (
-                  <div key={c.id} className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 text-xs">
-                    <p className="font-bold text-gray-900">{c.company}</p>
-                    <p className="text-[11px] text-[#3B318A] font-semibold">{c.purchasedProduct}</p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Installed: {c.installationDate}</p>
+                {engineerServiceList.slice(0, 5).map((s) => (
+                  <div key={s.id} className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 text-xs">
+                    <p className="font-bold text-gray-900">{s.customerName} <span className="text-gray-400 font-normal">({s.company})</span></p>
+                    <p className="text-[11px] text-teal-700 font-semibold">{s.serviceName}</p>
+                    <p className="text-[10px] text-gray-400 mt-0.5">Date: {s.scheduledDate}</p>
                   </div>
                 ))}
               </div>
@@ -333,25 +315,6 @@ export const DashboardPage = () => {
           <p className="text-xs text-indigo-200 mt-1">
             Welcome, <strong>{currentUser?.name || 'Sales Representative'}</strong>. Track customer requirements, manage follow-up calls, and close equipment deals.
           </p>
-        </div>
-
-        <div className="flex items-center gap-2.5 flex-wrap">
-          <Button
-            variant="primary"
-            icon={Plus}
-            onClick={() => navigate('/leads')}
-            className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-black shadow-lg"
-          >
-            Quick Add Lead
-          </Button>
-          <Button
-            variant="primary"
-            icon={ShoppingBag}
-            onClick={() => navigate('/customers')}
-            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black shadow-lg"
-          >
-            Record Item Sale
-          </Button>
         </div>
       </div>
 
@@ -517,28 +480,28 @@ export const DashboardPage = () => {
 
         {/* Right Column (1 col): Recent Converted Accounts & Sales Tips */}
         <div className="space-y-6">
-          {/* Recent Converted Customers */}
+          {/* Recent Won Deals */}
           <Card className="p-5 space-y-3">
             <div className="flex items-center justify-between border-b pb-2 border-gray-100">
               <h3 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                <Users className="w-3.5 h-3.5 text-emerald-600" />
-                Recent Converted Customers
+                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                Recent Won Deals
               </h3>
               <Badge variant="success">Closed</Badge>
             </div>
 
             <div className="space-y-2.5">
-              {recentSalesCustomers.length === 0 ? (
-                <p className="text-xs text-gray-400 py-3 text-center">No customer records yet.</p>
+              {recentWonDeals.length === 0 ? (
+                <p className="text-xs text-gray-400 py-3 text-center">No won deals yet.</p>
               ) : (
-                recentSalesCustomers.map((c) => (
-                  <div key={c.id} className="p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs space-y-1">
+                recentWonDeals.map((lead) => (
+                  <div key={lead.id} className="p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs space-y-1">
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-gray-900">{c.company}</span>
-                      <span className="text-[10px] text-emerald-600 font-bold">{c.installationDate}</span>
+                      <span className="font-bold text-gray-900">{lead.company || lead.customerName}</span>
+                      <span className="text-[10px] text-emerald-600 font-bold">{lead.followUpDate || 'Converted'}</span>
                     </div>
-                    <p className="text-gray-600">{c.customerName} ({c.phone})</p>
-                    <p className="text-[11px] font-semibold text-[#3B318A]">{c.purchasedProduct}</p>
+                    <p className="text-gray-600">{lead.customerName} ({lead.phone})</p>
+                    <p className="text-[11px] font-semibold text-[#3B318A]">{lead.requirement || lead.interestedProduct}</p>
                   </div>
                 ))
               )}

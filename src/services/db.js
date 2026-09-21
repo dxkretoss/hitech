@@ -346,14 +346,14 @@ class SupabaseDatabase {
     this.saveLocal('hitech_v2_customers', [formattedCust, ...currentCusts]);
 
     // Create Initial Service for Field Engineer
-    await this.generateInitialServiceForCustomer(formattedCust);
+    await this.generateInitialServiceForCustomer(formattedCust, saleData.nextServiceDate);
 
     return formattedCust;
   }
 
   // Initial Service Creation (Dynamic Next Service cycle driven by Engineer)
-  async generateInitialServiceForCustomer(customer) {
-    const installDate = customer.installationDate || new Date().toISOString().split('T')[0];
+  async generateInitialServiceForCustomer(customer, customServiceDate = null) {
+    const installDate = customServiceDate || customer.installationDate || new Date().toISOString().split('T')[0];
     const initialId = `SRV-${Date.now().toString().slice(-4)}`;
 
     const initialService = {
