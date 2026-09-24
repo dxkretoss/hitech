@@ -129,17 +129,17 @@ class SupabaseDatabase {
     const newLead = {
       id,
       customer_name: lead.customerName || lead.customer_name,
-      company: lead.company,
-      phone: lead.phone,
+      company: lead.company || '',
+      phone: lead.phone || '',
       branch: branch,
       lead_type: leadType,
       interested_product: lead.interestedProduct || lead.interested_product || lead.requirement,
       requirement: lead.requirement,
       status: lead.status || 'New',
-      loss_reason: lead.lossReason || '',
-      loss_remark: lead.lossRemark || '',
-      loss_date: lead.lossDate || '',
-      follow_up_date: lead.followUpDate || lead.follow_up_date || new Date().toISOString().split('T')[0],
+      loss_reason: lead.lossReason || null,
+      loss_remark: lead.lossRemark || null,
+      loss_date: lead.lossDate ? lead.lossDate : null,
+      follow_up_date: (lead.followUpDate || lead.follow_up_date || new Date().toISOString().split('T')[0]),
       notes: lead.notes || '',
       sales_person_id: salesPersonId,
       sales_person_name: salesPersonName
@@ -148,7 +148,10 @@ class SupabaseDatabase {
     if (isSupabaseConfigured()) {
       try {
         const { error } = await supabase.from('leads').insert([newLead]);
-        if (error) console.error('Supabase add lead error:', error);
+        if (error) {
+          console.error('Supabase add lead error:', error);
+          throw error;
+        }
       } catch (e) {
         console.error('Supabase add lead exception:', e);
       }
@@ -205,10 +208,10 @@ class SupabaseDatabase {
         if (updated.interestedProduct) payload.interested_product = updated.interestedProduct;
         if (updated.requirement) payload.requirement = updated.requirement;
         if (updated.status) payload.status = updated.status;
-        if (updated.lossReason !== undefined) payload.loss_reason = updated.lossReason;
-        if (updated.lossRemark !== undefined) payload.loss_remark = updated.lossRemark;
-        if (updated.lossDate !== undefined) payload.loss_date = updated.lossDate;
-        if (updated.followUpDate) payload.follow_up_date = updated.followUpDate;
+        if (updated.lossReason !== undefined) payload.loss_reason = updated.lossReason || null;
+        if (updated.lossRemark !== undefined) payload.loss_remark = updated.lossRemark || null;
+        if (updated.lossDate !== undefined) payload.loss_date = updated.lossDate ? updated.lossDate : null;
+        if (updated.followUpDate !== undefined) payload.follow_up_date = updated.followUpDate ? updated.followUpDate : null;
         if (updated.notes !== undefined) payload.notes = updated.notes;
         if (updated.salesPersonName) payload.sales_person_name = updated.salesPersonName;
 
@@ -366,10 +369,10 @@ class SupabaseDatabase {
       scheduled_date: installDate,
       status: 'Upcoming',
       assigned_engineer: customer.assignedEngineer || 'Sanjay Patel',
-      work_done: '',
-      parts_replaced: '',
-      completion_date: '',
-      next_service_date: '',
+      work_done: null,
+      parts_replaced: null,
+      completion_date: null,
+      next_service_date: null,
       notes: 'Initial commissioning service. Engineer to log work done / parts changed and schedule next service date.'
     };
 
@@ -879,7 +882,7 @@ class SupabaseDatabase {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (data && data.length > 0) return data;
+        if (data) return data;
       } catch (e) {
         console.warn('Supabase fetch notifications error:', e);
       }
@@ -923,7 +926,7 @@ class SupabaseDatabase {
           .order('item_name', { ascending: true });
 
         if (error) throw error;
-        if (data && data.length > 0) {
+        if (data) {
           return data.map(s => ({
             id: s.id,
             itemName: s.item_name,
@@ -1350,7 +1353,7 @@ class SupabaseDatabase {
   getLocal(key, fallback) {
     try {
       const saved = localStorage.getItem(key);
-      return saved ? JSON.parse(saved) : fallback;
+      return saved !== null ? JSON.parse(saved) : fallback;
     } catch (e) {
       return fallback;
     }

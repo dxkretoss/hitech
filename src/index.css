@@ -97,4 +97,11 @@
   background-color: #eef2ff !important;
   color: #3B318A !important;
 }
-
+/* Sonner close button position override to right side */
+[data-sonner-toaster] [data-close-button],
+[data-sonner-toast] [data-close-button],
+[data-close-button] {
+  left: auto !important;
+  right: 0 !important;
+  transform: translate(35%, -35%) !important;
+}

@@ -80,17 +80,9 @@ export const Header = ({ onOpenSidebar }) => {
             aria-expanded={dropdownOpen}
             aria-haspopup="true"
           >
-            {currentUser?.avatar ? (
-              <img
-                src={currentUser.avatar}
-                alt={currentUser.name}
-                className="w-8 h-8 rounded-full object-cover border border-gray-200 ring-2 ring-indigo-50"
-              />
-            ) : (
-              <div className="w-8 h-8 rounded-full bg-[#3B318A] text-white font-bold flex items-center justify-center text-xs shadow-xs">
-                {(currentUser?.name || 'U').charAt(0).toUpperCase()}
-              </div>
-            )}
+            <div className="w-8 h-8 rounded-full bg-[#3B318A] text-white font-bold flex items-center justify-center text-xs shadow-xs shrink-0 ring-2 ring-indigo-50 select-none">
+              {(currentUser?.name || currentUser?.email || 'U').charAt(0).toUpperCase()}
+            </div>
             <div className="hidden sm:block text-left">
               <p className="text-xs font-bold text-gray-900 leading-tight">
                 {currentUser?.name || 'User Account'}

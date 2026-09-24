@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import PhoneInput from 'react-phone-input-2';
 import { Modal } from '../ui/Modal.jsx';
 import { Button } from '../ui/Button.jsx';
-import { Input, Textarea } from '../ui/Input.jsx';
+import { Input, Textarea, CustomSelect } from '../ui/Input.jsx';
 import { db } from '../../services/db.js';
 import { Wrench, ShoppingBag, Building2, ShieldCheck, CheckCircle2, PackageCheck, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
@@ -73,10 +73,7 @@ export const NewInstallationModal = ({ isOpen, onClose, onInstallationCreated, d
       return;
     }
 
-    const finalProduct =
-      formData.selectedProduct === 'OTHER_CUSTOM'
-        ? formData.customProduct.trim()
-        : formData.selectedProduct;
+    const finalProduct = (formData.selectedProduct || '').trim();
 
     if (!finalProduct) {
       toast.error('Please specify the machine model');
@@ -133,6 +130,26 @@ export const NewInstallationModal = ({ isOpen, onClose, onInstallationCreated, d
   };
 
   const isCustomProduct = formData.selectedProduct === 'OTHER_CUSTOM';
+
+  const getBranchMachineInfo = (branchName) => {
+    const selected = (formData.selectedProduct || '').trim().toLowerCase();
+    const branchItems = machineStock.filter((m) => m.branch === branchName);
+    const totalBranchMachines = branchItems.reduce((acc, m) => acc + (Number(m.quantity) || 0), 0);
+
+    const matchedItem = branchItems.find(
+      (m) =>
+        selected &&
+        (m.itemName.toLowerCase().includes(selected) || selected.includes(m.itemName.toLowerCase()))
+    );
+
+    const modelQty = matchedItem ? Number(matchedItem.quantity) || 0 : 0;
+
+    return {
+      totalBranchMachines,
+      modelQty,
+      hasMatchedModel: !!matchedItem
+    };
+  };
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Register New Machine Installation" maxWidth="max-w-2xl">
@@ -197,18 +214,47 @@ export const NewInstallationModal = ({ isOpen, onClose, onInstallationCreated, d
           />
         </div>
 
-        {/* Branch Warehouse Selection */}
+        {/* Machine Product & Serial Tag */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+          <CustomSelect
+            label="Installed Machine Model"
+            name="selectedProduct"
+            value={formData.selectedProduct}
+            onChange={(e) => setFormData({ ...formData, selectedProduct: e.target.value })}
+            options={[
+              { value: '50 HP Screw Air Compressor', label: '50 HP Screw Air Compressor', group: 'Standard Air Compressors' },
+              { value: '75 HP VFD Screw Compressor', label: '75 HP VFD Screw Compressor', group: 'Standard Air Compressors' },
+              { value: '100 HP Heavy-Duty Screw Air Compressor', label: '100 HP Heavy-Duty Screw Air Compressor', group: 'Standard Air Compressors' },
+              { value: '30 HP Compact Rotary Screw Compressor', label: '30 HP Compact Rotary Screw Compressor', group: 'Standard Air Compressors' },
+              { value: 'HT-PET 40 Bar Compressor', label: 'HT-PET 40 Bar Compressor', group: 'Standard Air Compressors' },
+              { value: 'HT-20 HP Oil Free Compressor', label: 'HT-20 HP Oil Free Compressor', group: 'Standard Air Compressors' },
+              { value: '10-Ton Industrial Water Chiller', label: '10-Ton Industrial Water Chiller', group: 'Chillers & Dryers' },
+              { value: 'Refrigerated Air Dryer 100 CFM', label: 'Refrigerated Air Dryer 100 CFM', group: 'Chillers & Dryers' },
+              { value: 'Refrigerated Air Dryer 150 CFM', label: 'Refrigerated Air Dryer 150 CFM', group: 'Chillers & Dryers' }
+            ]}
+            customPlaceholder="e.g. HT-150 HP Direct Drive Variable Screw Compressor"
+            allowCustom={true}
+            required
+          />
+
+          <Input
+            label="Machine Serial No. / Asset Tag (Optional)"
+            placeholder="e.g. HT-2026-SRT-9401"
+            value={formData.serialNumber}
+            onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
+          />
+        </div>
+
+        {/* Dynamic Branch Warehouse Selection */}
         <div className="space-y-1.5 p-3 bg-slate-50 rounded-xl border border-slate-200">
           <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
             <span>Dispatch / Installation Branch Warehouse</span> <span className="text-red-500">*</span>
           </label>
           <div className="grid grid-cols-3 gap-2">
             {['Surat', 'Morbi', 'Rajkot'].map((br) => {
-              const branchMachinesCount = machineStock
-                .filter((m) => m.branch === br)
-                .reduce((acc, m) => acc + (Number(m.quantity) || 0), 0);
-
+              const { totalBranchMachines, modelQty, hasMatchedModel } = getBranchMachineInfo(br);
               const isSelected = formData.dispatchBranch === br;
+
               return (
                 <button
                   key={br}
@@ -223,68 +269,24 @@ export const NewInstallationModal = ({ isOpen, onClose, onInstallationCreated, d
                   <span className="block">{br} Branch</span>
                   <span
                     className={`text-[10px] font-semibold block mt-0.5 ${
-                      isSelected ? 'text-indigo-200' : 'text-emerald-700'
+                      isSelected
+                        ? 'text-indigo-200'
+                        : hasMatchedModel && modelQty > 0
+                        ? 'text-emerald-700'
+                        : hasMatchedModel && modelQty === 0
+                        ? 'text-rose-600'
+                        : 'text-gray-500'
                     }`}
                   >
-                    {branchMachinesCount} Machines in Stock
+                    {hasMatchedModel
+                      ? `${modelQty} in Stock • ${totalBranchMachines} Total`
+                      : `${totalBranchMachines} Machines in Stock`}
                   </span>
                 </button>
               );
             })}
           </div>
         </div>
-
-        {/* Machine Product & Serial Tag */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
-              Installed Machine Model <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.selectedProduct}
-              onChange={(e) => setFormData({ ...formData, selectedProduct: e.target.value })}
-              className="w-full h-[38px] px-3 py-2 text-xs font-semibold border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] bg-white text-gray-900"
-            >
-              <optgroup label="Standard Air Compressors">
-                <option value="50 HP Screw Air Compressor">50 HP Screw Air Compressor</option>
-                <option value="75 HP VFD Screw Compressor">75 HP VFD Screw Compressor</option>
-                <option value="100 HP Heavy-Duty Screw Air Compressor">100 HP Heavy-Duty Screw Air Compressor</option>
-                <option value="30 HP Compact Rotary Screw Compressor">30 HP Compact Rotary Screw Compressor</option>
-                <option value="HT-PET 40 Bar Compressor">HT-PET 40 Bar Compressor</option>
-                <option value="HT-20 HP Oil Free Compressor">HT-20 HP Oil Free Compressor</option>
-              </optgroup>
-              <optgroup label="Chillers & Dryers">
-                <option value="10-Ton Industrial Water Chiller">10-Ton Industrial Water Chiller</option>
-                <option value="Refrigerated Air Dryer 100 CFM">Refrigerated Air Dryer 100 CFM</option>
-                <option value="Refrigerated Air Dryer 150 CFM">Refrigerated Air Dryer 150 CFM</option>
-              </optgroup>
-              <optgroup label="Custom / Other">
-                <option value="OTHER_CUSTOM">+ Other / Custom Machine Model</option>
-              </optgroup>
-            </select>
-          </div>
-
-          <Input
-            label="Machine Serial No. / Asset Tag (Optional)"
-            placeholder="e.g. HT-2026-SRT-9401"
-            value={formData.serialNumber}
-            onChange={(e) => setFormData({ ...formData, serialNumber: e.target.value })}
-          />
-        </div>
-
-        {/* Custom Machine Input (Shown when OTHER_CUSTOM is selected) */}
-        {isCustomProduct && (
-          <div className="p-3 bg-indigo-50/70 border border-indigo-200 rounded-xl">
-            <Input
-              label="Specify Custom Machine Model Name"
-              placeholder="e.g. HT-150 HP Direct Drive Variable Screw Compressor"
-              value={formData.customProduct}
-              onChange={(e) => setFormData({ ...formData, customProduct: e.target.value })}
-              required
-              className="bg-white"
-            />
-          </div>
-        )}
 
         {/* Next Service Due Date & Assigned Field Engineer */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
@@ -296,30 +298,27 @@ export const NewInstallationModal = ({ isOpen, onClose, onInstallationCreated, d
             placeholder="Select date"
           />
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
-              Assigned Field Engineer <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={formData.assignedEngineer}
-              onChange={(e) => setFormData({ ...formData, assignedEngineer: e.target.value })}
-              className="w-full h-[38px] px-3 py-2 text-xs font-medium border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] bg-white text-gray-900 truncate"
-            >
-              {engineers.length > 0 ? (
-                engineers.map((eng) => (
-                  <option key={eng.id} value={eng.name}>
-                    {eng.name} ({eng.branch || 'Gujarat'})
-                  </option>
-                ))
-              ) : (
-                <>
-                  <option value="Sanjay Patel">Sanjay Patel (Surat)</option>
-                  <option value="Rameshwar Joshi">Rameshwar Joshi (Morbi)</option>
-                  <option value="Ketan Solanki">Ketan Solanki (Rajkot)</option>
-                </>
-              )}
-            </select>
-          </div>
+          <CustomSelect
+            label="Assigned Field Engineer"
+            name="assignedEngineer"
+            value={formData.assignedEngineer}
+            onChange={(e) => setFormData({ ...formData, assignedEngineer: e.target.value })}
+            options={
+              engineers.length > 0
+                ? engineers.map((eng) => ({
+                    value: eng.name,
+                    label: `${eng.name} (${eng.branch || 'Gujarat'})`
+                  }))
+                : [
+                    { value: 'Sanjay Patel', label: 'Sanjay Patel (Surat)' },
+                    { value: 'Rameshwar Joshi', label: 'Rameshwar Joshi (Morbi)' },
+                    { value: 'Ketan Solanki', label: 'Ketan Solanki (Rajkot)' }
+                  ]
+            }
+            customPlaceholder="Enter custom engineer / contractor name..."
+            allowCustom={true}
+            required
+          />
         </div>
 
         {/* Plant Site / Installation Address */}

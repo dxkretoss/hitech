@@ -16,7 +16,9 @@ export const ProfilePage = () => {
 
       <Card className="p-6 space-y-6">
         <div className="flex items-center gap-4 border-b pb-6 border-gray-100">
-          <img src={currentUser?.avatar} alt={currentUser?.name} className="w-16 h-16 rounded-full object-cover border-2 border-[#3B318A]" />
+          <div className="w-16 h-16 rounded-full bg-[#3B318A] text-white font-black text-2xl flex items-center justify-center shadow-md select-none shrink-0">
+            {(currentUser?.name || currentUser?.email || 'U').charAt(0).toUpperCase()}
+          </div>
           <div>
             <h2 className="text-xl font-black text-gray-900">{currentUser?.name}</h2>
             <p className="text-xs text-gray-500">{currentUser?.email}</p>

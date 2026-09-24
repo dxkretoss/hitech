@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal.jsx';
 import { Button } from '../ui/Button.jsx';
-import { Input, Textarea } from '../ui/Input.jsx';
+import { Input, Textarea, CustomSelect } from '../ui/Input.jsx';
 import { db } from '../../services/db.js';
 import { Calendar, Wrench, User } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,7 +11,6 @@ export const ScheduleServiceModal = ({ isOpen, onClose, onServiceCreated }) => {
   const [engineers, setEngineers] = useState([]);
   const [selectedCustomerId, setSelectedCustomerId] = useState('');
   const [serviceType, setServiceType] = useState('Routine Preventative Maintenance');
-  const [customServiceName, setCustomServiceName] = useState('');
   const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
   const [assignedEngineer, setAssignedEngineer] = useState('Sanjay Patel');
   const [notes, setNotes] = useState('');
@@ -46,9 +45,9 @@ export const ScheduleServiceModal = ({ isOpen, onClose, onServiceCreated }) => {
       return;
     }
 
-    const finalServiceName = serviceType === 'Other' ? customServiceName.trim() : serviceType;
-    if (serviceType === 'Other' && !finalServiceName) {
-      toast.error('Please enter a custom service title/purpose.');
+    const finalServiceName = (serviceType || '').trim();
+    if (!finalServiceName) {
+      toast.error('Please enter a service title/purpose.');
       return;
     }
 
@@ -104,36 +103,23 @@ export const ScheduleServiceModal = ({ isOpen, onClose, onServiceCreated }) => {
           </div>
         )}
 
-        <div className="space-y-1.5">
-          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
-            Service Title / Purpose
-          </label>
-          <select
-            value={serviceType}
-            onChange={(e) => setServiceType(e.target.value)}
-            className="w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-          >
-            <option value="Routine Preventative Maintenance">Routine Preventative Maintenance</option>
-            <option value="Air Filter & Oil Filter Replacement">Air Filter & Oil Filter Replacement</option>
-            <option value="Major Compressor Overhaul & AMC Inspection">Major Compressor Overhaul & AMC Inspection</option>
-            <option value="Breakdown / Emergency Repair Call">Breakdown / Emergency Repair Call</option>
-            <option value="Initial Machine Commissioning Check">Initial Machine Commissioning Check</option>
-            <option value="Other">Other (Custom Service Purpose)</option>
-          </select>
-        </div>
-
-        {/* Custom Service Title Text Field when "Other" is selected */}
-        {serviceType === 'Other' && (
-          <div className="animate-in fade-in slide-in-from-top-1 duration-150">
-            <Input
-              label="Enter Custom Service Title / Purpose"
-              placeholder="e.g. Oil Cooler Cleaning & Electrical Panel Servicing"
-              value={customServiceName}
-              onChange={(e) => setCustomServiceName(e.target.value)}
-              required
-            />
-          </div>
-        )}
+        <CustomSelect
+          label="Service Title / Purpose"
+          name="serviceType"
+          value={serviceType}
+          onChange={(e) => setServiceType(e.target.value)}
+          options={[
+            'Routine Preventative Maintenance',
+            'Air Filter & Oil Filter Replacement',
+            'Major Compressor Overhaul & AMC Inspection',
+            'Breakdown / Emergency Repair Call',
+            'Initial Machine Commissioning Check',
+            'Oil Cooler Cleaning & Electrical Panel Servicing'
+          ]}
+          customPlaceholder="e.g. Custom valve replacement & pressure test"
+          allowCustom={true}
+          required
+        />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Input
@@ -144,27 +130,22 @@ export const ScheduleServiceModal = ({ isOpen, onClose, onServiceCreated }) => {
             required
           />
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
-              Assign Field Engineer
-            </label>
-            <select
-              value={assignedEngineer}
-              onChange={(e) => setAssignedEngineer(e.target.value)}
-              className="w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-            >
-              {engineers.length > 0 ? (
-                engineers.map(eng => (
-                  <option key={eng.id} value={eng.name}>{eng.name}</option>
-                ))
-              ) : (
-                <>
-                  <option value="Sanjay Patel">Sanjay Patel</option>
-                  <option value="Ramesh Kumar">Ramesh Kumar</option>
-                </>
-              )}
-            </select>
-          </div>
+          <CustomSelect
+            label="Assign Field Engineer"
+            name="assignedEngineer"
+            value={assignedEngineer}
+            onChange={(e) => setAssignedEngineer(e.target.value)}
+            options={
+              engineers.length > 0
+                ? engineers.map(eng => ({ value: eng.name, label: eng.name }))
+                : [
+                    { value: 'Sanjay Patel', label: 'Sanjay Patel' },
+                    { value: 'Ramesh Kumar', label: 'Ramesh Kumar' }
+                  ]
+            }
+            customPlaceholder="Enter custom engineer name..."
+            allowCustom={true}
+          />
         </div>
 
         <Textarea

@@ -64,9 +64,10 @@ export const Textarea = ({
         onChange={onChange}
         rows={rows}
         placeholder={placeholder}
-        required={required}
         className={`w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] focus:border-[#3B318A] outline-none transition-all ${className}`}
       />
     </div>
   );
 };
+
+export { CustomSelect } from './CustomSelect.jsx';

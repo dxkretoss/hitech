@@ -32,6 +32,7 @@ export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
     { label: 'Future Opportunities', path: '/future-opportunities', icon: Sparkles, ownerOnly: true },
     { label: 'Customers', path: '/customers', icon: Users, ownerOnly: true },
     { label: 'Services', path: '/services', icon: Wrench, allowedRoles: ['Engineer', 'Owner', 'SuperAdmin', 'Admin'] },
+    { label: 'Stock & Inventory', path: '/stock', icon: Boxes, allowedRoles: ['Owner', 'SuperAdmin', 'Admin', 'Engineer', 'Sales'] },
     { label: 'Notifications', path: '/notifications', icon: Bell },
     { label: 'Profile', path: '/profile', icon: User }
   ];

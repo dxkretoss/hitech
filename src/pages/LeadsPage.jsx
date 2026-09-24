@@ -5,6 +5,7 @@ import { db } from '../services/db.js';
 import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Input, Textarea } from '../components/ui/Input.jsx';
+import { CustomSelect } from '../components/ui/CustomSelect.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
 import { Table } from '../components/ui/Table.jsx';
 import { Modal } from '../components/ui/Modal.jsx';
@@ -426,78 +427,9 @@ export const LeadsPage = () => {
           </div>
         </div>
 
-        {/* Quick Filter Tabs */}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setStatusFilter('ALL')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              statusFilter === 'ALL'
-                ? 'bg-[#3B318A] text-white shadow-md'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            All Leads ({leads.length})
-          </button>
-          <button
-            onClick={() => setStatusFilter('HOT')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              statusFilter === 'HOT'
-                ? 'bg-rose-600 text-white shadow-md'
-                : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
-            }`}
-          >
-            <Flame className="w-3.5 h-3.5 text-rose-500" />
-            Hot Leads ({countHot})
-          </button>
-          <button
-            onClick={() => setStatusFilter('COLD')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              statusFilter === 'COLD'
-                ? 'bg-sky-600 text-white shadow-md'
-                : 'bg-sky-50 text-sky-700 hover:bg-sky-100 border border-sky-200'
-            }`}
-          >
-            <Snowflake className="w-3.5 h-3.5 text-sky-500" />
-            Cold Leads ({countCold})
-          </button>
-          <button
-            onClick={() => setStatusFilter('WON')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              statusFilter === 'WON'
-                ? 'bg-emerald-600 text-white shadow-md'
-                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
-            }`}
-          >
-            <UserCheck className="w-3.5 h-3.5 text-emerald-500" />
-            Sold / Won ({countWon})
-          </button>
-          <button
-            onClick={() => setStatusFilter('LOST')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              statusFilter === 'LOST'
-                ? 'bg-red-700 text-white shadow-md'
-                : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
-            }`}
-          >
-            <XCircle className="w-3.5 h-3.5 text-red-500" />
-            Lost Deals ({countLost})
-          </button>
-          <button
-            onClick={() => setStatusFilter('FUTURE')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all ${
-              statusFilter === 'FUTURE'
-                ? 'bg-amber-600 text-white shadow-md'
-                : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
-            }`}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-            Future Req ({countFuture})
-          </button>
-        </div>
-
         {/* Main Leads Table Card */}
         <Card className="space-y-4">
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
@@ -508,6 +440,32 @@ export const LeadsPage = () => {
                 className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
               />
             </div>
+
+            {isAdmin && (
+              <select
+                value={selectedBranch}
+                onChange={(e) => setSelectedBranch(e.target.value)}
+                className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-gray-700 outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
+              >
+                <option value="ALL">All Branches</option>
+                <option value="Surat">Surat Branch</option>
+                <option value="Morbi">Morbi Branch</option>
+                <option value="Rajkot">Rajkot Branch</option>
+              </select>
+            )}
+
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-[#3B318A] outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
+            >
+              <option value="ALL">All Leads ({leads.length})</option>
+              <option value="HOT">Hot Leads ({countHot})</option>
+              <option value="COLD">Cold Leads ({countCold})</option>
+              <option value="WON">Sold / Won ({countWon})</option>
+              <option value="LOST">Lost Deals ({countLost})</option>
+              <option value="FUTURE">Future Req ({countFuture})</option>
+            </select>
           </div>
 
           {loading ? (
@@ -615,26 +573,29 @@ export const LeadsPage = () => {
                 />
               </div>
 
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">Product Category</label>
-                <select
-                  value={formData.interestedProduct}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      interestedProduct: e.target.value,
-                      requirement: formData.requirement || e.target.value
-                    })
-                  }
-                  className="w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-                >
-                  <option value="50 HP Screw Air Compressor">50 HP Screw Air Compressor</option>
-                  <option value="75 HP VFD Screw Compressor">75 HP VFD Screw Compressor</option>
-                  <option value="10-Ton Industrial Water Chiller">10-Ton Industrial Water Chiller</option>
-                  <option value="Refrigerated Air Dryer 100 CFM">Refrigerated Air Dryer 100 CFM</option>
-                  <option value="Annual Maintenance Contract (AMC)">Annual Maintenance Contract (AMC)</option>
-                </select>
-              </div>
+              <CustomSelect
+                label="Product Category"
+                name="interestedProduct"
+                value={formData.interestedProduct}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    interestedProduct: e.target.value
+                  })
+                }
+                options={[
+                  '50 HP Screw Air Compressor',
+                  '75 HP VFD Screw Compressor',
+                  '100 HP Heavy-Duty Screw Air Compressor',
+                  '30 HP Compact Rotary Screw Compressor',
+                  '10-Ton Industrial Water Chiller',
+                  'Refrigerated Air Dryer 100 CFM',
+                  'Refrigerated Air Dryer 150 CFM',
+                  'Annual Maintenance Contract (AMC)'
+                ]}
+                customPlaceholder="e.g. 150 HP Direct-Drive Variable Speed Compressor"
+                allowCustom={true}
+              />
             </div>
 
             <Input
@@ -662,18 +623,22 @@ export const LeadsPage = () => {
               </div>
 
               {formData.status === 'Future Requirement' ? (
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">Expected Timeline</label>
-                  <select
-                    value={formData.expectedPurchaseMonth}
-                    onChange={(e) => setFormData({ ...formData, expectedPurchaseMonth: e.target.value })}
-                    className="w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-                  >
-                    <option value="After 2 Months">After 2 Months</option>
-                    <option value="After 6 Months">After 6 Months</option>
-                    <option value="After 10 Months">After 10 Months / Next Year</option>
-                  </select>
-                </div>
+                <CustomSelect
+                  label="Expected Timeline"
+                  name="expectedPurchaseMonth"
+                  value={formData.expectedPurchaseMonth}
+                  onChange={(e) => setFormData({ ...formData, expectedPurchaseMonth: e.target.value })}
+                  options={[
+                    'After 1 Month',
+                    'After 2 Months',
+                    'After 3 Months',
+                    'After 6 Months',
+                    'After 10 Months / Next Year',
+                    'Q1 Next Fiscal Year'
+                  ]}
+                  customPlaceholder="e.g. In 45 days, after Diwali, etc."
+                  allowCustom={true}
+                />
               ) : (
                 <Input
                   label="Next Follow-Up Date"
@@ -731,25 +696,23 @@ export const LeadsPage = () => {
               </div>
             )}
 
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
-                <span>Primary Reason for Loss</span> <span className="text-red-500 select-none">*</span>
-              </label>
-              <select
-                value={lossFormData.lossReason}
-                onChange={(e) => setLossFormData({ ...lossFormData, lossReason: e.target.value })}
-                className="w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-red-600 font-semibold text-gray-800"
-                required
-              >
-                <option value="Price too high / Competitor cheaper">Price too high / Competitor cheaper</option>
-                <option value="Client purchased competitor brand">Client purchased competitor brand</option>
-                <option value="Project cancelled / Postponed indefinitely">Project cancelled / Postponed indefinitely</option>
-                <option value="Unresponsive / Contact unreachable">Unresponsive / Contact unreachable</option>
-                <option value="Machine specification / CFM capacity mismatch">Machine specification / CFM capacity mismatch</option>
-                <option value="Client opted for second-hand / rental compressor">Client opted for second-hand / rental compressor</option>
-                <option value="Other">Other Reasons</option>
-              </select>
-            </div>
+            <CustomSelect
+              label="Primary Reason for Loss"
+              name="lossReason"
+              value={lossFormData.lossReason}
+              onChange={(e) => setLossFormData({ ...lossFormData, lossReason: e.target.value })}
+              options={[
+                'Price too high / Competitor cheaper',
+                'Client purchased competitor brand',
+                'Project cancelled / Postponed indefinitely',
+                'Unresponsive / Contact unreachable',
+                'Machine specification / CFM capacity mismatch',
+                'Client opted for second-hand / rental compressor'
+              ]}
+              customPlaceholder="Enter custom reason for lead loss..."
+              allowCustom={true}
+              required
+            />
 
             <div className="space-y-1.5">
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">

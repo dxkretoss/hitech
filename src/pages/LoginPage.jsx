@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext.jsx';
 import logoPng from '../assets/logo.png';
 import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
-import { Briefcase, Wrench, Lock, Mail, User, Eye, EyeOff, ArrowRight, CheckCircle2, Building2 } from 'lucide-react';
+import { Briefcase, Lock, Mail, User, Eye, EyeOff, ArrowRight, CheckCircle2, Building2, ChevronDown } from 'lucide-react';
 
 export const LoginPage = () => {
   const { login, signup } = useAuth();
@@ -185,68 +185,54 @@ export const LoginPage = () => {
                   </div>
                 </div>
 
-                {/* Role Selection on Sign Up */}
+                {/* Role & Branch Selection on Sign Up (2 Columns in 1 Row) */}
                 {mode === 'signup' && (
-                  <div className="space-y-2 pt-1">
-                    <label className="block text-xs font-bold text-gray-700">Select Role</label>
+                  <div className="space-y-1.5 pt-1">
                     <div className="grid grid-cols-2 gap-3">
-                      <button
-                        type="button"
-                        onClick={() => setRole('Sales')}
-                        className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-center transition-all ${
-                          role === 'Sales'
-                            ? 'border-[#3B318A] bg-indigo-50/70 text-[#3B318A] ring-2 ring-[#3B318A]/20 font-bold'
-                            : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-600'
-                        }`}
-                      >
-                        <div className={`p-2 rounded-lg ${role === 'Sales' ? 'bg-[#3B318A] text-white' : 'bg-gray-100 text-gray-600'}`}>
-                          <Briefcase className="w-4 h-4" />
-                        </div>
-                        <span className="text-xs font-bold">Sales</span>
-                        <span className="text-[10px] text-gray-400">Leads & CRM</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => setRole('Engineer')}
-                        className={`p-3 rounded-xl border flex flex-col items-center gap-1.5 text-center transition-all ${
-                          role === 'Engineer'
-                            ? 'border-[#3B318A] bg-indigo-50/70 text-[#3B318A] ring-2 ring-[#3B318A]/20 font-bold'
-                            : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-600'
-                        }`}
-                      >
-                        <div className={`p-2 rounded-lg ${role === 'Engineer' ? 'bg-[#3B318A] text-white' : 'bg-gray-100 text-gray-600'}`}>
-                          <Wrench className="w-4 h-4" />
-                        </div>
-                        <span className="text-xs font-bold">Engineer</span>
-                        <span className="text-[10px] text-gray-400">Service & Sites</span>
-                      </button>
-                    </div>
-
-                    {/* Branch Selection on Sign Up */}
-                    <div className="space-y-1.5 pt-2 border-t border-gray-100">
-                      <label className="block text-xs font-bold text-gray-700">Select Assigned Branch</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        {['Surat', 'Morbi', 'Rajkot'].map((br) => (
-                          <button
-                            key={br}
-                            type="button"
-                            onClick={() => setBranch(br)}
-                            className={`py-2 px-1.5 rounded-xl border text-xs font-bold transition-all flex flex-col items-center gap-1 ${
-                              branch === br
-                                ? 'border-[#3B318A] bg-indigo-50/80 text-[#3B318A] ring-2 ring-[#3B318A]/20 shadow-2xs font-extrabold'
-                                : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-600'
-                            }`}
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Select Role</label>
+                        <div className="relative flex items-center">
+                          <div className="absolute left-3 flex items-center pointer-events-none text-gray-400">
+                            <Briefcase className="w-3.5 h-3.5" />
+                          </div>
+                          <select
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
+                            className="w-full pl-8 pr-7 py-2.5 text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] focus:border-[#3B318A] outline-none bg-white text-gray-800 font-medium cursor-pointer appearance-none transition-all truncate"
                           >
-                            <Building2 className="w-3.5 h-3.5" />
-                            <span>{br}</span>
-                          </button>
-                        ))}
+                            <option value="Sales">Sales</option>
+                            <option value="Engineer">Engineer</option>
+                          </select>
+                          <div className="absolute right-2.5 flex items-center pointer-events-none text-gray-400">
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
                       </div>
-                      <p className="text-[10px] text-gray-400 text-center">
-                        Your workspace will display <strong>{branch} Branch</strong> data.
-                      </p>
+
+                      <div>
+                        <label className="block text-xs font-bold text-gray-700 mb-1">Select Branch</label>
+                        <div className="relative flex items-center">
+                          <div className="absolute left-3 flex items-center pointer-events-none text-gray-400">
+                            <Building2 className="w-3.5 h-3.5" />
+                          </div>
+                          <select
+                            value={branch}
+                            onChange={(e) => setBranch(e.target.value)}
+                            className="w-full pl-8 pr-7 py-2.5 text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] focus:border-[#3B318A] outline-none bg-white text-gray-800 font-medium cursor-pointer appearance-none transition-all truncate"
+                          >
+                            <option value="Surat">Surat</option>
+                            <option value="Morbi">Morbi</option>
+                            <option value="Rajkot">Rajkot</option>
+                          </select>
+                          <div className="absolute right-2.5 flex items-center pointer-events-none text-gray-400">
+                            <ChevronDown className="w-3.5 h-3.5" />
+                          </div>
+                        </div>
+                      </div>
                     </div>
+                    <p className="text-[10px] text-gray-400 text-center pt-0.5">
+                      Assigned to <strong>{branch} Branch</strong> ({role} Team)
+                    </p>
                   </div>
                 )}
 

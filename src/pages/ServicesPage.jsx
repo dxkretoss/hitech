@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { db } from '../services/db.js';
 import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
@@ -42,8 +43,42 @@ export const ServicesPage = () => {
   const userBranch = currentUser?.branch || 'Surat';
   const isAdmin = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTabParam = searchParams.get('tab');
+
+  // Derive initial mainView from URL search param (?tab=schedules | installations | spare-parts)
+  const getInitialView = () => {
+    if (currentTabParam === 'installations') return 'INSTALLATIONS';
+    if (currentTabParam === 'spare-parts' || currentTabParam === 'spares' || currentTabParam === 'stock') return 'SPARE_PARTS_STOCK';
+    return 'SCHEDULES';
+  };
+
   // Main View: 'SCHEDULES' | 'INSTALLATIONS' | 'SPARE_PARTS_STOCK'
-  const [mainView, setMainView] = useState('SCHEDULES');
+  const [mainView, setMainView] = useState(getInitialView);
+
+  // Sync state if URL query param changes
+  useEffect(() => {
+    if (currentTabParam === 'installations') {
+      setMainView('INSTALLATIONS');
+    } else if (currentTabParam === 'spare-parts' || currentTabParam === 'spares' || currentTabParam === 'stock') {
+      setMainView('SPARE_PARTS_STOCK');
+    } else if (currentTabParam === 'schedules') {
+      setMainView('SCHEDULES');
+    }
+  }, [currentTabParam]);
+
+  const handleTabChange = (viewKey) => {
+    setMainView(viewKey);
+    let tabSlug = 'schedules';
+    if (viewKey === 'INSTALLATIONS') tabSlug = 'installations';
+    if (viewKey === 'SPARE_PARTS_STOCK') tabSlug = 'spare-parts';
+
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('tab', tabSlug);
+      return next;
+    }, { replace: true });
+  };
 
   // Service Schedules state
   const [services, setServices] = useState([]);
@@ -71,6 +106,10 @@ export const ServicesPage = () => {
   const [scheduleModalOpen, setScheduleModalOpen] = useState(false);
   const [newInstallationModalOpen, setNewInstallationModalOpen] = useState(false);
   const [viewReportService, setViewReportService] = useState(null);
+
+  // Machine Installation Delete Modal
+  const [deleteInstallationModalOpen, setDeleteInstallationModalOpen] = useState(false);
+  const [selectedInstallationToDelete, setSelectedInstallationToDelete] = useState(null);
 
   // Stock Modals
   const [addPartModalOpen, setAddPartModalOpen] = useState(false);
@@ -148,6 +187,17 @@ export const ServicesPage = () => {
       setDeletePartModalOpen(false);
       setSelectedPart(null);
       await loadSparePartsStock();
+    }
+  };
+
+  const handleConfirmDeleteInstallation = async () => {
+    if (selectedInstallationToDelete) {
+      await db.deleteCustomer(selectedInstallationToDelete.id);
+      toast.success(`Machine installation details for ${selectedInstallationToDelete.customerName} deleted.`);
+      setDeleteInstallationModalOpen(false);
+      setSelectedInstallationToDelete(null);
+      await loadInstallations();
+      await loadServices();
     }
   };
 
@@ -513,6 +563,17 @@ export const ServicesPage = () => {
                 Schedule Service
               </Button>
             )}
+
+            <button
+              onClick={() => {
+                setSelectedInstallationToDelete(row);
+                setDeleteInstallationModalOpen(true);
+              }}
+              className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+              title="Delete Machine Details"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
           </div>
         );
       }
@@ -529,7 +590,7 @@ export const ServicesPage = () => {
             {row.itemName}
           </span>
           <p className="text-xs text-gray-500 font-mono mt-0.5">
-            SKU: <strong className="text-gray-700">{row.partNumber}</strong>
+            <strong className="text-gray-700">{row.partNumber}</strong>
             {row.compatibleModels && <span className="ml-2 text-gray-400">({row.compatibleModels})</span>}
           </p>
         </div>
@@ -684,7 +745,7 @@ export const ServicesPage = () => {
       {/* Primary Workspace View Switcher Tabs (3 tabs) */}
       <div className="flex flex-wrap items-center gap-2 bg-gray-100 p-1.5 rounded-2xl w-fit">
         <button
-          onClick={() => setMainView('SCHEDULES')}
+          onClick={() => handleTabChange('SCHEDULES')}
           className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             mainView === 'SCHEDULES'
               ? 'bg-emerald-700 text-white shadow-md'
@@ -696,7 +757,7 @@ export const ServicesPage = () => {
         </button>
 
         <button
-          onClick={() => setMainView('INSTALLATIONS')}
+          onClick={() => handleTabChange('INSTALLATIONS')}
           className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             mainView === 'INSTALLATIONS'
               ? 'bg-emerald-700 text-white shadow-md'
@@ -708,7 +769,7 @@ export const ServicesPage = () => {
         </button>
 
         <button
-          onClick={() => setMainView('SPARE_PARTS_STOCK')}
+          onClick={() => handleTabChange('SPARE_PARTS_STOCK')}
           className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
             mainView === 'SPARE_PARTS_STOCK'
               ? 'bg-emerald-700 text-white shadow-md'
@@ -723,50 +784,28 @@ export const ServicesPage = () => {
       {/* VIEW 1: SERVICE SCHEDULES */}
       {mainView === 'SCHEDULES' && (
         <div className="space-y-4">
-          {/* Status Filter Tabs */}
-          <div className="flex items-center gap-2 border-b border-gray-200 pb-3 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab('All')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'All'
-                  ? 'bg-[#3B318A] text-white shadow-xs'
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              All Services ({services.length})
-            </button>
-            <button
-              onClick={() => setActiveTab('Upcoming')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'Upcoming'
-                  ? 'bg-sky-600 text-white shadow-xs'
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              Upcoming ({countUpcoming})
-            </button>
-            <button
-              onClick={() => setActiveTab('Completed')}
-              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                activeTab === 'Completed'
-                  ? 'bg-emerald-600 text-white shadow-xs'
-                  : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-              }`}
-            >
-              Completed Reports ({countCompleted})
-            </button>
-          </div>
-
           <Card className="space-y-4">
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={serviceSearchTerm}
-                onChange={(e) => setServiceSearchTerm(e.target.value)}
-                placeholder="Search service schedule by customer, company, parts changed, work done..."
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
-              />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={serviceSearchTerm}
+                  onChange={(e) => setServiceSearchTerm(e.target.value)}
+                  placeholder="Search service schedule by customer, company, parts changed, work done..."
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
+                />
+              </div>
+
+              <select
+                value={activeTab}
+                onChange={(e) => setActiveTab(e.target.value)}
+                className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-[#3B318A] outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer shadow-2xs"
+              >
+                <option value="All">All Services ({services.length})</option>
+                <option value="Upcoming">Upcoming ({countUpcoming})</option>
+                <option value="Completed">Completed Reports ({countCompleted})</option>
+              </select>
             </div>
 
             {loadingServices ? (
@@ -826,98 +865,39 @@ export const ServicesPage = () => {
             </Card>
           </div>
 
-          {/* Filters Bar */}
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-2 border-b border-gray-200 pb-3 overflow-x-auto">
-              <button
-                onClick={() => setInstallationBranchFilter('ALL')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  installationBranchFilter === 'ALL'
-                    ? 'bg-[#3B318A] text-white shadow-xs'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5" />
-                All Branches ({installations.length})
-              </button>
-              <button
-                onClick={() => setInstallationBranchFilter('Surat')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  installationBranchFilter === 'Surat'
-                    ? 'bg-indigo-700 text-white shadow-xs'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                Surat ({suratInstallCount})
-              </button>
-              <button
-                onClick={() => setInstallationBranchFilter('Morbi')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  installationBranchFilter === 'Morbi'
-                    ? 'bg-amber-700 text-white shadow-xs'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                Morbi ({morbiInstallCount})
-              </button>
-              <button
-                onClick={() => setInstallationBranchFilter('Rajkot')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  installationBranchFilter === 'Rajkot'
-                    ? 'bg-teal-700 text-white shadow-xs'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                Rajkot ({rajkotInstallCount})
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setInstallationStatusFilter('ALL')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  installationStatusFilter === 'ALL'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                All Installations
-              </button>
-              <button
-                onClick={() => setInstallationStatusFilter('COMMISSIONED')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                  installationStatusFilter === 'COMMISSIONED'
-                    ? 'bg-emerald-600 text-white'
-                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200'
-                }`}
-              >
-                <CheckCircle2 className="w-3 h-3 text-emerald-500" />
-                Commissioned & Serviced ({commissionedCount})
-              </button>
-              <button
-                onClick={() => setInstallationStatusFilter('PENDING')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                  installationStatusFilter === 'PENDING'
-                    ? 'bg-amber-600 text-white'
-                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200'
-                }`}
-              >
-                <Clock className="w-3 h-3 text-amber-600" />
-                Pending 1st Service ({installations.length - commissionedCount})
-              </button>
-            </div>
-          </div>
-
           <Card className="space-y-4">
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={installationSearchTerm}
-                onChange={(e) => setInstallationSearchTerm(e.target.value)}
-                placeholder="Search installations by customer, company, machine model, engineer, address..."
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
-              />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={installationSearchTerm}
+                  onChange={(e) => setInstallationSearchTerm(e.target.value)}
+                  placeholder="Search installations by customer, company, machine model, engineer, address..."
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
+                />
+              </div>
+
+              <select
+                value={installationBranchFilter}
+                onChange={(e) => setInstallationBranchFilter(e.target.value)}
+                className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-gray-700 outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
+              >
+                <option value="ALL">All Branches ({installations.length})</option>
+                <option value="Surat">Surat ({suratInstallCount})</option>
+                <option value="Morbi">Morbi ({morbiInstallCount})</option>
+                <option value="Rajkot">Rajkot ({rajkotInstallCount})</option>
+              </select>
+
+              <select
+                value={installationStatusFilter}
+                onChange={(e) => setInstallationStatusFilter(e.target.value)}
+                className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-[#3B318A] outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
+              >
+                <option value="ALL">All Status</option>
+                <option value="COMMISSIONED">Commissioned & Serviced ({commissionedCount})</option>
+                <option value="PENDING">Pending 1st Service ({installations.length - commissionedCount})</option>
+              </select>
             </div>
 
             {loadingInstallations ? (
@@ -983,98 +963,39 @@ export const ServicesPage = () => {
             </Card>
           </div>
 
-          {/* Branch & Velocity Filter Tabs */}
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-2 border-b border-gray-200 pb-3 overflow-x-auto">
-              <button
-                onClick={() => setBranchFilter('ALL')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  branchFilter === 'ALL'
-                    ? 'bg-[#3B318A] text-white shadow-xs'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5" />
-                All Branches ({spareParts.length})
-              </button>
-              <button
-                onClick={() => setBranchFilter('Surat')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  branchFilter === 'Surat'
-                    ? 'bg-indigo-700 text-white shadow-xs'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                Surat ({suratPartsCount})
-              </button>
-              <button
-                onClick={() => setBranchFilter('Morbi')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  branchFilter === 'Morbi'
-                    ? 'bg-amber-700 text-white shadow-xs'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                Morbi ({morbiPartsCount})
-              </button>
-              <button
-                onClick={() => setBranchFilter('Rajkot')}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
-                  branchFilter === 'Rajkot'
-                    ? 'bg-teal-700 text-white shadow-xs'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-                }`}
-              >
-                Rajkot ({rajkotPartsCount})
-              </button>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                onClick={() => setVelocityFilter('ALL')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                  velocityFilter === 'ALL'
-                    ? 'bg-gray-900 text-white'
-                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                }`}
-              >
-                All Parts
-              </button>
-              <button
-                onClick={() => setVelocityFilter('FAST_MOVING')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                  velocityFilter === 'FAST_MOVING'
-                    ? 'bg-rose-600 text-white'
-                    : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
-                }`}
-              >
-                <Flame className="w-3 h-3 text-rose-500" />
-                High 1-Yr Consumption (Fast Moving)
-              </button>
-              <button
-                onClick={() => setVelocityFilter('LOW_STOCK')}
-                className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 cursor-pointer ${
-                  velocityFilter === 'LOW_STOCK'
-                    ? 'bg-red-700 text-white'
-                    : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
-                }`}
-              >
-                <AlertTriangle className="w-3 h-3 text-red-600" />
-                Reorder Alerts ({lowStockPartsCount})
-              </button>
-            </div>
-          </div>
-
           <Card className="space-y-4">
-            <div className="relative">
-              <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                value={stockSearchTerm}
-                onChange={(e) => setStockSearchTerm(e.target.value)}
-                placeholder="Search spare parts by name, SKU, branch, compatible models..."
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
-              />
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                <input
+                  type="text"
+                  value={stockSearchTerm}
+                  onChange={(e) => setStockSearchTerm(e.target.value)}
+                  placeholder="Search spare parts by name, SKU, branch, compatible models..."
+                  className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
+                />
+              </div>
+
+              <select
+                value={branchFilter}
+                onChange={(e) => setBranchFilter(e.target.value)}
+                className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-gray-700 outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
+              >
+                <option value="ALL">All Branches ({spareParts.length})</option>
+                <option value="Surat">Surat ({suratPartsCount})</option>
+                <option value="Morbi">Morbi ({morbiPartsCount})</option>
+                <option value="Rajkot">Rajkot ({rajkotPartsCount})</option>
+              </select>
+
+              <select
+                value={velocityFilter}
+                onChange={(e) => setVelocityFilter(e.target.value)}
+                className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-[#3B318A] outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
+              >
+                <option value="ALL">All Velocity / Demand</option>
+                <option value="FAST_MOVING">High 1-Yr (Fast Moving)</option>
+                <option value="LOW_STOCK">Reorder Alerts ({lowStockPartsCount})</option>
+              </select>
             </div>
 
             {loadingStock ? (
@@ -1164,6 +1085,29 @@ export const ServicesPage = () => {
           )
         }
         confirmText="Yes, Delete Part"
+        cancelText="Cancel"
+        variant="danger"
+      />
+
+      {/* Delete Machine Installation Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteInstallationModalOpen}
+        onClose={() => {
+          setDeleteInstallationModalOpen(false);
+          setSelectedInstallationToDelete(null);
+        }}
+        onConfirm={handleConfirmDeleteInstallation}
+        title="Delete Machine Installation Details?"
+        description={
+          selectedInstallationToDelete ? (
+            <span>
+              Are you sure you want to delete the machine installation details for <strong className="text-gray-900">{selectedInstallationToDelete.customerName}</strong> ({selectedInstallationToDelete.purchasedProduct || 'Machine'}) at <strong className="text-gray-900">{selectedInstallationToDelete.company || 'Client Site'}</strong>? This will also remove any linked service schedules.
+            </span>
+          ) : (
+            'Delete this machine installation?'
+          )
+        }
+        confirmText="Yes, Delete Machine Details"
         cancelText="Cancel"
         variant="danger"
       />

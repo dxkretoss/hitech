@@ -9,7 +9,7 @@ export default function App() {
     <BrowserRouter>
       <AuthProvider>
         <AppRoutes />
-        <Toaster position="top-right" richColors />
+        <Toaster position="top-right" richColors closeButton />
       </AuthProvider>
     </BrowserRouter>
   );

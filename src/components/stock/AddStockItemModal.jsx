@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Modal } from '../ui/Modal.jsx';
 import { Button } from '../ui/Button.jsx';
-import { Input, Textarea } from '../ui/Input.jsx';
+import { Input, Textarea, CustomSelect } from '../ui/Input.jsx';
 import { Package, Plus, Sparkles, Building2, Wrench, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -149,21 +149,27 @@ export const AddStockItemModal = ({ isOpen, onClose, onStockAdded, defaultBranch
             required
           />
 
-          <div className="space-y-1.5">
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">Unit</label>
-            <select
-              value={formData.unit}
-              onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
-              className="w-full h-[38px] px-3 py-2 text-xs font-semibold border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-            >
-              <option value="Units">Units (Nos)</option>
-              <option value="Pails (20L)">Pails (20L)</option>
-              <option value="Liters">Liters</option>
-              <option value="Sets">Sets</option>
-              <option value="Kits">Kits</option>
-              <option value="Meters">Meters</option>
-            </select>
-          </div>
+          <CustomSelect
+            label="Unit"
+            name="unit"
+            value={formData.unit}
+            onChange={(e) => setFormData({ ...formData, unit: e.target.value })}
+            options={[
+              'Units',
+              'Pails (20L)',
+              'Liters',
+              'Sets',
+              'Kits',
+              'Meters',
+              'Bottles',
+              'Drums',
+              'Rolls',
+              'Bags'
+            ]}
+            customPlaceholder="e.g. Kg, Box, Cans..."
+            allowCustom={true}
+            required
+          />
 
           <Input
             label="Min Reorder Alert"

@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { AlertTriangle, Trash2, HelpCircle, X } from 'lucide-react';
+import { AlertTriangle, Trash2, HelpCircle, X, Loader2 } from 'lucide-react';
 import { Button } from './Button.jsx';
 
 export const ConfirmModal = ({
@@ -15,27 +15,44 @@ export const ConfirmModal = ({
   loading = false,
   icon: CustomIcon
 }) => {
+  const [internalLoading, setInternalLoading] = useState(false);
+
   if (!isOpen) return null;
+
+  const isLoading = loading || internalLoading;
+
+  const handleConfirmClick = async (e) => {
+    e?.preventDefault();
+    if (isLoading) return;
+    try {
+      setInternalLoading(true);
+      await onConfirm?.();
+    } catch (err) {
+      console.error('Confirmation action error:', err);
+    } finally {
+      setInternalLoading(false);
+    }
+  };
 
   const getVariantStyles = () => {
     switch (variant) {
       case 'danger':
         return {
           iconBg: 'bg-red-100 text-red-600 border-red-200',
-          confirmBtn: 'bg-red-600 hover:bg-red-700 text-white font-bold shadow-md shadow-red-500/20',
+          confirmBtn: 'bg-red-600 hover:bg-red-700 text-white font-bold shadow-md shadow-red-500/20 disabled:bg-red-400 disabled:opacity-60 disabled:cursor-not-allowed',
           Icon: CustomIcon || Trash2
         };
       case 'warning':
         return {
           iconBg: 'bg-amber-100 text-amber-700 border-amber-200',
-          confirmBtn: 'bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-md shadow-amber-500/20',
+          confirmBtn: 'bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-md shadow-amber-500/20 disabled:bg-amber-400 disabled:opacity-60 disabled:cursor-not-allowed',
           Icon: CustomIcon || AlertTriangle
         };
       case 'primary':
       default:
         return {
           iconBg: 'bg-indigo-100 text-[#3B318A] border-indigo-200',
-          confirmBtn: 'bg-[#3B318A] hover:bg-[#2F2770] text-white font-bold shadow-md shadow-indigo-500/20',
+          confirmBtn: 'bg-[#3B318A] hover:bg-[#2F2770] text-white font-bold shadow-md shadow-indigo-500/20 disabled:bg-indigo-400 disabled:opacity-60 disabled:cursor-not-allowed',
           Icon: CustomIcon || HelpCircle
         };
     }
@@ -51,7 +68,8 @@ export const ConfirmModal = ({
         <div className="flex items-center justify-end px-4 pt-3">
           <button
             onClick={onClose}
-            className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            disabled={isLoading}
+            className="p-1.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -60,7 +78,11 @@ export const ConfirmModal = ({
         {/* Content body */}
         <div className="px-6 pb-6 pt-1 text-center space-y-4">
           <div className={`w-14 h-14 mx-auto rounded-2xl border flex items-center justify-center shadow-inner ${config.iconBg}`}>
-            <IconComponent className="w-7 h-7" />
+            {isLoading ? (
+              <Loader2 className="w-7 h-7 animate-spin text-current" />
+            ) : (
+              <IconComponent className="w-7 h-7" />
+            )}
           </div>
 
           <div className="space-y-1.5">
@@ -78,20 +100,23 @@ export const ConfirmModal = ({
               type="button"
               variant="outline"
               onClick={onClose}
-              disabled={loading}
-              className="w-full py-2.5 rounded-xl border-gray-300 font-semibold text-xs text-gray-700 hover:bg-gray-50"
+              disabled={isLoading}
+              className="w-full py-2.5 rounded-xl border-gray-300 font-semibold text-xs text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
               {cancelText}
             </Button>
 
             <button
               type="button"
-              onClick={onConfirm}
-              disabled={loading}
-              className={`w-full py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 ${config.confirmBtn}`}
+              onClick={handleConfirmClick}
+              disabled={isLoading}
+              className={`w-full py-2.5 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 cursor-pointer ${config.confirmBtn}`}
             >
-              {loading ? (
-                <span>Processing...</span>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+                  <span>Processing...</span>
+                </>
               ) : (
                 <span>{confirmText}</span>
               )}

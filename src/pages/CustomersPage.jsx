@@ -6,6 +6,7 @@ import { db } from '../services/db.js';
 import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Input } from '../components/ui/Input.jsx';
+import { CustomSelect } from '../components/ui/CustomSelect.jsx';
 import { Table } from '../components/ui/Table.jsx';
 import { Modal } from '../components/ui/Modal.jsx';
 import { ConfirmModal } from '../components/ui/ConfirmModal.jsx';
@@ -276,57 +277,74 @@ export const CustomersPage = () => {
               </div>
             </div>
 
-            {/* Branch Warehouse & Machine Stock Selection */}
+            <CustomSelect
+              label="Purchased Item / Machine Product"
+              name="purchasedProduct"
+              value={saleFormData.purchasedProduct}
+              onChange={(e) => setSaleFormData({ ...saleFormData, purchasedProduct: e.target.value })}
+              options={[
+                '50 HP Screw Air Compressor',
+                '75 HP VFD Screw Compressor',
+                '100 HP Heavy-Duty Screw Air Compressor',
+                '30 HP Compact Rotary Screw Compressor',
+                '10-Ton Industrial Water Chiller',
+                'Refrigerated Air Dryer 100 CFM',
+                'Refrigerated Air Dryer 150 CFM'
+              ]}
+              customPlaceholder="e.g. HT-150 HP Direct-Drive Compressor"
+              allowCustom={true}
+              required
+            />
+
+            {/* Branch Warehouse & Dynamic Machine Stock Selection */}
             <div className="space-y-1.5 p-3 bg-indigo-50/60 rounded-xl border border-indigo-100">
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
                 <span>Dispatch / Fulfill from Branch Warehouse</span> <span className="text-red-500">*</span>
               </label>
               <div className="grid grid-cols-3 gap-2">
                 {['Surat', 'Morbi', 'Rajkot'].map((br) => {
-                  const branchStockCount = machineStock
-                    .filter((m) => m.branch === br)
-                    .reduce((acc, m) => acc + (Number(m.quantity) || 0), 0);
+                  const selected = (saleFormData.purchasedProduct || '').trim().toLowerCase();
+                  const branchItems = machineStock.filter((m) => m.branch === br);
+                  const totalBranchMachines = branchItems.reduce((acc, m) => acc + (Number(m.quantity) || 0), 0);
+                  const matchedItem = branchItems.find(
+                    (m) =>
+                      selected &&
+                      (m.itemName.toLowerCase().includes(selected) || selected.includes(m.itemName.toLowerCase()))
+                  );
+                  const modelQty = matchedItem ? Number(matchedItem.quantity) || 0 : 0;
+                  const isSelected = saleFormData.dispatchBranch === br;
 
                   return (
                     <button
                       key={br}
                       type="button"
                       onClick={() => setSaleFormData({ ...saleFormData, dispatchBranch: br })}
-                      className={`p-2 rounded-xl border text-xs font-bold transition-all text-center ${saleFormData.dispatchBranch === br
+                      className={`p-2 rounded-xl border text-xs font-bold transition-all text-center cursor-pointer ${
+                        isSelected
                           ? 'bg-[#3B318A] text-white border-[#3B318A] shadow-xs'
                           : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-                        }`}
+                      }`}
                     >
                       <span className="block">{br} Branch</span>
                       <span
-                        className={`text-[10px] font-semibold block mt-0.5 ${saleFormData.dispatchBranch === br ? 'text-indigo-200' : 'text-emerald-700'
-                          }`}
+                        className={`text-[10px] font-semibold block mt-0.5 ${
+                          isSelected
+                            ? 'text-indigo-200'
+                            : matchedItem && modelQty > 0
+                            ? 'text-emerald-700'
+                            : matchedItem && modelQty === 0
+                            ? 'text-rose-600'
+                            : 'text-gray-500'
+                        }`}
                       >
-                        {branchStockCount} Machines
+                        {matchedItem
+                          ? `${modelQty} in Stock • ${totalBranchMachines} Total`
+                          : `${totalBranchMachines} Machines in Stock`}
                       </span>
                     </button>
                   );
                 })}
               </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
-                Purchased Item / Machine Product
-              </label>
-              <select
-                value={saleFormData.purchasedProduct}
-                onChange={(e) => setSaleFormData({ ...saleFormData, purchasedProduct: e.target.value })}
-                className="w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] font-semibold text-gray-900"
-              >
-                <option value="50 HP Screw Air Compressor">50 HP Screw Air Compressor</option>
-                <option value="75 HP VFD Screw Compressor">75 HP VFD Screw Compressor</option>
-                <option value="100 HP Heavy-Duty Screw Air Compressor">100 HP Heavy-Duty Screw Air Compressor</option>
-                <option value="30 HP Compact Rotary Screw Compressor">30 HP Compact Rotary Screw Compressor</option>
-                <option value="10-Ton Industrial Water Chiller">10-Ton Industrial Water Chiller</option>
-                <option value="Refrigerated Air Dryer 100 CFM">Refrigerated Air Dryer 100 CFM</option>
-                <option value="Refrigerated Air Dryer 150 CFM">Refrigerated Air Dryer 150 CFM</option>
-              </select>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -337,27 +355,22 @@ export const CustomersPage = () => {
                 onChange={(e) => setSaleFormData({ ...saleFormData, installationDate: e.target.value })}
                 required
               />
-              <div className="space-y-1.5">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">Assign Engineer</label>
-                <select
-                  value={saleFormData.assignedEngineer}
-                  onChange={(e) => setSaleFormData({ ...saleFormData, assignedEngineer: e.target.value })}
-                  className="w-full h-[38px] px-3 py-2 text-xs font-medium border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] bg-white text-gray-900 truncate"
-                >
-                  {engineersList.length > 0 ? (
-                    engineersList.map((eng) => (
-                      <option key={eng.id} value={eng.name}>
-                        {eng.name}
-                      </option>
-                    ))
-                  ) : (
-                    <>
-                      <option value="Sanjay Patel">Sanjay Patel</option>
-                      <option value="Ramesh Kumar">Ramesh Kumar</option>
-                    </>
-                  )}
-                </select>
-              </div>
+              <CustomSelect
+                label="Assign Engineer"
+                name="assignedEngineer"
+                value={saleFormData.assignedEngineer}
+                onChange={(e) => setSaleFormData({ ...saleFormData, assignedEngineer: e.target.value })}
+                options={
+                  engineersList.length > 0
+                    ? engineersList.map((eng) => ({ value: eng.name, label: eng.name }))
+                    : [
+                        { value: 'Sanjay Patel', label: 'Sanjay Patel' },
+                        { value: 'Ramesh Kumar', label: 'Ramesh Kumar' }
+                      ]
+                }
+                customPlaceholder="e.g. Assigned contractor or engineer..."
+                allowCustom={true}
+              />
             </div>
 
             <Input

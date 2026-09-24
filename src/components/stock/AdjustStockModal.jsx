@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal.jsx';
 import { Button } from '../ui/Button.jsx';
-import { Input, Textarea } from '../ui/Input.jsx';
+import { Input, Textarea, CustomSelect } from '../ui/Input.jsx';
 import { PlusCircle, MinusCircle, RefreshCw, Package, Building2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -140,37 +140,35 @@ export const AdjustStockModal = ({ isOpen, onClose, item, onStockAdjusted }) => 
           </div>
         </div>
 
-        <div className="space-y-1.5">
-          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">Reason</label>
-          <select
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            className="w-full h-[38px] px-3 py-2 text-xs font-semibold border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-          >
-            {adjustmentType === 'ADD' && (
-              <>
-                <option value="Restocked from Supplier / Vendor">Restocked from Supplier / Vendor</option>
-                <option value="Customer Return / Warranty Repl">Customer Return / Warranty Repl</option>
-                <option value="Production Batch Received">Production Batch Received</option>
-                <option value="Inventory Correction (Surplus)">Inventory Correction (Surplus)</option>
-              </>
-            )}
-            {adjustmentType === 'DEDUCT' && (
-              <>
-                <option value="Used in Field Engineer Service">Used in Field Engineer Service</option>
-                <option value="Direct Customer Machine Sale">Direct Customer Machine Sale</option>
-                <option value="Damaged / Scrap Write-off">Damaged / Scrap Write-off</option>
-                <option value="Internal Demo / Testing Unit">Internal Demo / Testing Unit</option>
-              </>
-            )}
-            {adjustmentType === 'SET' && (
-              <>
-                <option value="Physical Inventory Audit Correction">Physical Inventory Audit Correction</option>
-                <option value="Year-End Stock Reconciliation">Year-End Stock Reconciliation</option>
-              </>
-            )}
-          </select>
-        </div>
+        <CustomSelect
+          label="Reason"
+          name="reason"
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          options={
+            adjustmentType === 'ADD'
+              ? [
+                  'Restocked from Supplier / Vendor',
+                  'Customer Return / Warranty Repl',
+                  'Production Batch Received',
+                  'Inventory Correction (Surplus)'
+                ]
+              : adjustmentType === 'DEDUCT'
+              ? [
+                  'Used in Field Engineer Service',
+                  'Direct Customer Machine Sale',
+                  'Damaged / Scrap Write-off',
+                  'Internal Demo / Testing Unit'
+                ]
+              : [
+                  'Physical Inventory Audit Correction',
+                  'Year-End Stock Reconciliation'
+                ]
+          }
+          customPlaceholder="Enter custom adjustment reason..."
+          allowCustom={true}
+          required
+        />
 
         <Textarea
           label="Adjustment Notes / Reference"

@@ -32,7 +32,7 @@ export const StockPage = () => {
   const [stockItems, setStockItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Filters
   const [branchFilter, setBranchFilter] = useState('ALL'); // 'ALL' | 'Surat' | 'Morbi' | 'Rajkot'
   const [categoryFilter, setCategoryFilter] = useState('ALL'); // 'ALL' | 'Machine' | 'Spare Part' | 'FAST_MOVING' | 'LOW_STOCK'
@@ -168,7 +168,7 @@ export const StockPage = () => {
             )}
           </div>
           <p className="text-xs text-gray-500 font-mono mt-0.5">
-            SKU: <strong className="text-gray-700">{row.partNumber}</strong>
+            <strong className="text-gray-700">{row.partNumber}</strong>
             {row.compatibleModels && <span className="ml-2 text-gray-400">({row.compatibleModels})</span>}
           </p>
         </div>
@@ -353,123 +353,42 @@ export const StockPage = () => {
         </Card>
       </div>
 
-      {/* Main Filter Tabs (Branch + Category) */}
-      <div className="space-y-3">
-        {/* Branch Tabs */}
-        <div className="flex items-center gap-2 border-b border-gray-200 pb-3 overflow-x-auto">
-          <button
-            onClick={() => setBranchFilter('ALL')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              branchFilter === 'ALL'
-                ? 'bg-[#3B318A] text-white shadow-xs'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            All Branches ({stockItems.length})
-          </button>
-          <button
-            onClick={() => setBranchFilter('Surat')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              branchFilter === 'Surat'
-                ? 'bg-indigo-700 text-white shadow-xs'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            Surat Branch ({suratCount})
-          </button>
-          <button
-            onClick={() => setBranchFilter('Morbi')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              branchFilter === 'Morbi'
-                ? 'bg-amber-700 text-white shadow-xs'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            Morbi Branch ({morbiCount})
-          </button>
-          <button
-            onClick={() => setBranchFilter('Rajkot')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-              branchFilter === 'Rajkot'
-                ? 'bg-teal-700 text-white shadow-xs'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
-            }`}
-          >
-            Rajkot Branch ({rajkotCount})
-          </button>
-        </div>
-
-        {/* Category & Velocity Sub-Pills */}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => setCategoryFilter('ALL')}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all ${
-              categoryFilter === 'ALL'
-                ? 'bg-gray-900 text-white'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            All Items
-          </button>
-          <button
-            onClick={() => setCategoryFilter('Machine')}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-              categoryFilter === 'Machine'
-                ? 'bg-[#3B318A] text-white'
-                : 'bg-indigo-50 text-indigo-800 hover:bg-indigo-100'
-            }`}
-          >
-            <ShoppingBag className="w-3 h-3" />
-            Machines (Sales)
-          </button>
-          <button
-            onClick={() => setCategoryFilter('Spare Part')}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-              categoryFilter === 'Spare Part'
-                ? 'bg-emerald-700 text-white'
-                : 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
-            }`}
-          >
-            <Wrench className="w-3 h-3" />
-            Spare Parts (Service)
-          </button>
-          <button
-            onClick={() => setCategoryFilter('FAST_MOVING')}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-              categoryFilter === 'FAST_MOVING'
-                ? 'bg-rose-600 text-white'
-                : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200'
-            }`}
-          >
-            <Flame className="w-3 h-3 text-rose-500" />
-            High 1-Yr Consumption (Fast Moving)
-          </button>
-          <button
-            onClick={() => setCategoryFilter('LOW_STOCK')}
-            className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
-              categoryFilter === 'LOW_STOCK'
-                ? 'bg-red-700 text-white'
-                : 'bg-red-50 text-red-700 hover:bg-red-100 border border-red-200'
-            }`}
-          >
-            <AlertTriangle className="w-3 h-3 text-red-600" />
-            Reorder Needed ({lowStockCount})
-          </button>
-        </div>
-      </div>
-
       {/* Main Stock Table Card */}
       <Card className="space-y-4">
-        <div className="relative">
-          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-          <input
-            type="text"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Search stock by item name, part number, branch, compatible models..."
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
-          />
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder="Search stock by item name, part number, branch, compatible models..."
+              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
+            />
+          </div>
+
+          <select
+            value={branchFilter}
+            onChange={(e) => setBranchFilter(e.target.value)}
+            className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-gray-700 outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
+          >
+            <option value="ALL">All Branches ({stockItems.length})</option>
+            <option value="Surat">Surat Branch ({suratCount})</option>
+            <option value="Morbi">Morbi Branch ({morbiCount})</option>
+            <option value="Rajkot">Rajkot Branch ({rajkotCount})</option>
+          </select>
+
+          <select
+            value={categoryFilter}
+            onChange={(e) => setCategoryFilter(e.target.value)}
+            className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-[#3B318A] outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
+          >
+            <option value="ALL">All Items ({stockItems.length})</option>
+            <option value="Machine">Machines (Sales)</option>
+            <option value="Spare Part">Spare Parts (Service)</option>
+            <option value="FAST_MOVING">High 1-Yr Consumption (Fast Moving)</option>
+            <option value="LOW_STOCK">Reorder Needed ({lowStockCount})</option>
+          </select>
         </div>
 
         {loading ? (
