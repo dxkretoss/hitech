@@ -41,6 +41,7 @@ export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
       label: isOwner ? 'Stock & Inventory' : 'Sold Items',
       path: isOwner ? '/admin/stock' : '/stock',
       icon: isOwner ? Boxes : ShoppingBag,
+      requiresStockAccess: true,
       allowedRoles: ['Sales', 'Owner', 'SuperAdmin', 'Admin']
     },
     { label: 'Notifications', path: isOwner ? '/admin/notifications' : '/notifications', icon: Bell },

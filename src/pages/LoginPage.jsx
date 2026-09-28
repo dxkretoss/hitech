@@ -5,6 +5,7 @@ import logoPng from '../assets/logo.png';
 import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
 import { Briefcase, Lock, Mail, User, Eye, EyeOff, ArrowRight, CheckCircle2, Building2, ChevronDown } from 'lucide-react';
+import { toast } from 'sonner';
 
 export const LoginPage = () => {
   const { login, signup } = useAuth();
@@ -14,14 +15,28 @@ export const LoginPage = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState('Sales'); // 'Sales' | 'Engineer'
   const [branch, setBranch] = useState('Surat'); // 'Surat' | 'Morbi' | 'Rajkot'
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmationSent, setConfirmationSent] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (mode === 'signup') {
+      if (password !== confirmPassword) {
+        toast.error('Passwords do not match. Please ensure both passwords are identical.');
+        return;
+      }
+      if (password.length < 6) {
+        toast.error('Password must be at least 6 characters long.');
+        return;
+      }
+    }
+
     setSubmitting(true);
 
     if (mode === 'login') {
@@ -178,12 +193,44 @@ export const LoginPage = () => {
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none"
+                      className="absolute right-3.5 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
                 </div>
+
+                {mode === 'signup' && (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-700 mb-1">Confirm Password</label>
+                    <div className="relative flex items-center">
+                      <div className="absolute left-3.5 flex items-center pointer-events-none text-gray-400">
+                        <Lock className="w-4 h-4" />
+                      </div>
+                      <input
+                        type={showConfirmPassword ? 'text' : 'password'}
+                        required
+                        minLength={6}
+                        value={confirmPassword}
+                        onChange={(e) => setConfirmPassword(e.target.value)}
+                        placeholder="••••••••"
+                        className="w-full pl-10 pr-10 py-2.5 text-xs border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] focus:border-[#3B318A] outline-none"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                        className="absolute right-3.5 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none cursor-pointer"
+                      >
+                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </button>
+                    </div>
+                    {confirmPassword && password !== confirmPassword && (
+                      <p className="text-[10px] text-red-500 font-semibold mt-1">
+                        Passwords do not match
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 {/* Role & Branch Selection on Sign Up (2 Columns in 1 Row) */}
                 {mode === 'signup' && (

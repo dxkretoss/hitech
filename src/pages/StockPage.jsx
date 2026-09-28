@@ -43,7 +43,8 @@ export const StockPage = () => {
   const isAdmin = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
   const isSales = role === 'Sales';
   const userBranch = currentUser?.branch || 'Surat';
-  const canAddMachine = isAdmin || currentUser?.canViewStock === true || currentUser?.canAddMachine === true;
+  const hasStockAccess = isAdmin || currentUser?.canViewStock === true || currentUser?.can_view_stock === true;
+  const canAddMachine = isAdmin || currentUser?.canViewStock === true || currentUser?.can_view_stock === true || currentUser?.canAddMachine === true;
 
   // EXACTLY 2 TABS: 'MACHINES' | 'SPARE_PARTS'
   const [activeTab, setActiveTab] = useState('MACHINES');
@@ -94,8 +95,13 @@ export const StockPage = () => {
       navigate('/services', { replace: true });
       return;
     }
+    if (!isAdmin && currentUser && currentUser.canViewStock !== true && currentUser.can_view_stock !== true) {
+      toast.error('You do not have permission to access stock or sold items.');
+      navigate('/dashboard', { replace: true });
+      return;
+    }
     loadData();
-  }, [role]);
+  }, [role, currentUser, isAdmin]);
 
   const handleStockAdded = async (newItemData) => {
     await db.addStockItem(newItemData);
@@ -844,8 +850,8 @@ export const StockPage = () => {
               {activeTab === 'SPARE_PARTS' ? 'Add Spare Part Stock' : 'Add Machine Stock'}
             </Button>
           ) : (
-            /* Sales Rep records customer sale */
-            (activeTab === 'SPARE_PARTS' || canAddMachine) && (
+            /* Sales Rep records customer sale only if hasStockAccess and canAddMachine */
+            hasStockAccess && (activeTab === 'SPARE_PARTS' || canAddMachine) && (
               <Button
                 onClick={() => {
                   if (activeTab === 'MACHINES') {
@@ -1028,17 +1034,19 @@ export const StockPage = () => {
                   Add Machine Stock
                 </Button>
               ) : (
-                <Button
-                  onClick={() => {
-                    setPreselectedMachine(null);
-                    setMachineSellModalOpen(true);
-                  }}
-                  variant="primary"
-                  icon={Plus}
-                  className="bg-[#3B318A] hover:bg-[#322A77] text-white shrink-0 cursor-pointer"
-                >
-                  Sell Machine (Installation)
-                </Button>
+                hasStockAccess && canAddMachine && (
+                  <Button
+                    onClick={() => {
+                      setPreselectedMachine(null);
+                      setMachineSellModalOpen(true);
+                    }}
+                    variant="primary"
+                    icon={Plus}
+                    className="bg-[#3B318A] hover:bg-[#322A77] text-white shrink-0 cursor-pointer"
+                  >
+                    Sell Machine (Installation)
+                  </Button>
+                )
               )}
             </div>
 
@@ -1199,17 +1207,19 @@ export const StockPage = () => {
                   Add Spare Part Stock
                 </Button>
               ) : (
-                <Button
-                  onClick={() => {
-                    setPreselectedSparePart(null);
-                    setSpareSellModalOpen(true);
-                  }}
-                  variant="primary"
-                  icon={Plus}
-                  className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 cursor-pointer"
-                >
-                  Sell Spare Part
-                </Button>
+                hasStockAccess && (
+                  <Button
+                    onClick={() => {
+                      setPreselectedSparePart(null);
+                      setSpareSellModalOpen(true);
+                    }}
+                    variant="primary"
+                    icon={Plus}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white shrink-0 cursor-pointer"
+                  >
+                    Sell Spare Part
+                  </Button>
+                )
               )}
             </div>
 
