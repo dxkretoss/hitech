@@ -58,7 +58,7 @@ export const LeadsPage = () => {
     phone: '',
     leadType: 'Hot Lead',
     requirement: '',
-    interestedProduct: '50 HP Screw Air Compressor',
+    interestedProduct: '',
     followUpDate: '',
     status: 'New',
     notes: '',
@@ -97,7 +97,7 @@ export const LeadsPage = () => {
       phone: '',
       leadType: 'Hot Lead',
       requirement: '',
-      interestedProduct: '50 HP Screw Air Compressor',
+      interestedProduct: '',
       followUpDate: new Date().toISOString().split('T')[0],
       status: 'New',
       notes: '',
@@ -581,7 +581,7 @@ export const LeadsPage = () => {
               </div>
 
               <CustomSelect
-                label="Product Category"
+                label="Product / Machine Model (Optional)"
                 name="interestedProduct"
                 value={formData.interestedProduct}
                 onChange={(e) =>
@@ -591,17 +591,42 @@ export const LeadsPage = () => {
                   })
                 }
                 options={[
-                  '50 HP Screw Air Compressor',
-                  '75 HP VFD Screw Compressor',
-                  '100 HP Heavy-Duty Screw Air Compressor',
-                  '30 HP Compact Rotary Screw Compressor',
-                  '10-Ton Industrial Water Chiller',
-                  'Refrigerated Air Dryer 100 CFM',
-                  'Refrigerated Air Dryer 150 CFM',
-                  'Annual Maintenance Contract (AMC)'
+                  // Single Stage Screw Compressors (HAT Series)
+                  { value: 'HAT 4 (5 HP / 4 kW - 23 CFM)', label: 'HAT 4 • 5 HP / 4 kW (23 CFM)', group: 'Single Stage Screw Compressors (HAT Series)' },
+                  { value: 'HAT 7 (10 HP / 7.5 kW - 43 CFM)', label: 'HAT 7 • 10 HP / 7.5 kW (43 CFM)', group: 'Single Stage Screw Compressors (HAT Series)' },
+                  { value: 'HAT 11 (15 HP / 11 kW - 62 CFM)', label: 'HAT 11 • 15 HP / 11 kW (62 CFM)', group: 'Single Stage Screw Compressors (HAT Series)' },
+                  { value: 'HAT 15 (20 HP / 15 kW - 90 CFM)', label: 'HAT 15 • 20 HP / 15 kW (90 CFM)', group: 'Single Stage Screw Compressors (HAT Series)' },
+                  { value: 'HAT 18 (25 HP / 18.5 kW - 119 CFM)', label: 'HAT 18 • 25 HP / 18.5 kW (119 CFM)', group: 'Single Stage Screw Compressors (HAT Series)' },
+                  { value: 'HAT 22 (30 HP / 22 kW - 135 CFM)', label: 'HAT 22 • 30 HP / 22 kW (135 CFM)', group: 'Single Stage Screw Compressors (HAT Series)' },
+                  { value: 'HAT 30 (40 HP / 30 kW - 185 CFM)', label: 'HAT 30 • 40 HP / 30 kW (185 CFM)', group: 'Single Stage Screw Compressors (HAT Series)' },
+                  { value: 'HAT 37 (50 HP / 37 kW - 239 CFM)', label: 'HAT 37 • 50 HP / 37 kW (239 CFM)', group: 'Single Stage Screw Compressors (HAT Series)' },
+                  { value: 'HAT 45 (60 HP / 45 kW - 286 CFM)', label: 'HAT 45 • 60 HP / 45 kW (286 CFM)', group: 'Single Stage Screw Compressors (HAT Series)' },
+                  { value: 'HAT 55 (75 HP / 55 kW - 365 CFM)', label: 'HAT 55 • 75 HP / 55 kW (365 CFM)', group: 'Single Stage Screw Compressors (HAT Series)' },
+                  { value: 'HAT 75 (100 HP / 75 kW - 475 CFM)', label: 'HAT 75 • 100 HP / 75 kW (475 CFM)', group: 'Single Stage Screw Compressors (HAT Series)' },
+
+                  // Two Stage High-Efficiency Compressors (HAT II Series)
+                  { value: 'HAT 55 II (75 HP / 55 kW - 460 CFM - 2 Stage)', label: 'HAT 55 II • 75 HP / 55 kW (460 CFM - 2-Stage)', group: 'Two Stage High-Efficiency (HAT II Series)' },
+                  { value: 'HAT 75 II (100 HP / 75 kW - 575 CFM - 2 Stage)', label: 'HAT 75 II • 100 HP / 75 kW (575 CFM - 2-Stage)', group: 'Two Stage High-Efficiency (HAT II Series)' },
+                  { value: 'HAT 90 II (120 HP / 90 kW - 695 CFM - 2 Stage)', label: 'HAT 90 II • 120 HP / 90 kW (695 CFM - 2-Stage)', group: 'Two Stage High-Efficiency (HAT II Series)' },
+                  { value: 'HAT 110 II (150 HP / 110 kW - 825 CFM - 2 Stage)', label: 'HAT 110 II • 150 HP / 110 kW (825 CFM - 2-Stage)', group: 'Two Stage High-Efficiency (HAT II Series)' },
+                  { value: 'HAT 132 II (175 HP / 132 kW - 985 CFM - 2 Stage)', label: 'HAT 132 II • 175 HP / 132 kW (985 CFM - 2-Stage)', group: 'Two Stage High-Efficiency (HAT II Series)' },
+
+                  // Air Treatment & Auxiliaries
+                  { value: 'Refrigerated Air Dryer', label: 'Refrigerated Air Dryer (Moisture & Dew Point Reduction)', group: 'Air Treatment & Auxiliaries' },
+                  { value: 'Air Receiver Tank', label: 'Air Receiver Tank (Pressure Stabilization)', group: 'Air Treatment & Auxiliaries' },
+                  { value: 'Fine & Vapor Line Filters (ISO 8573-1)', label: 'Fine & Vapor Line Filters (ISO 8573 Purity)', group: 'Air Treatment & Auxiliaries' },
+                  { value: 'Complete Turnkey Package (Compressor + Dryer + Tank + Filters)', label: 'Complete Turnkey Air System Package', group: 'Air Treatment & Auxiliaries' },
+
+                  // Maintenance & Services
+                  { value: 'Annual Maintenance Contract (AMC)', label: 'Annual Maintenance Contract (AMC)', group: 'Services & Spares' },
+                  { value: 'Compressor Spares / Consumables', label: 'Compressor Spares & Consumables', group: 'Services & Spares' },
+                  { value: 'Other / Custom Equipment', label: 'Other / Custom Equipment', group: 'Other' }
                 ]}
-                customPlaceholder="e.g. 150 HP Direct-Drive Variable Speed Compressor"
+                placeholder="Select product model or enter custom (Optional)..."
+                customPlaceholder="e.g. HT-150 HP Direct Drive Variable Speed Compressor"
+                customOptionLabel="Enter Custom / Other Model..."
                 allowCustom={true}
+                required={false}
               />
             </div>
 
