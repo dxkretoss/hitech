@@ -110,22 +110,19 @@ export const ScheduleServiceModal = ({ isOpen, onClose, onServiceCreated }) => {
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Optional Quick Autofill from Registered Customers */}
         {customers.length > 0 && (
-          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
-            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">
-              Quick Autofill from Existing Customer (Optional)
-            </label>
-            <select
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1.5">
+            <CustomSelect
+              label="Quick Autofill from Existing Customer (Optional)"
               value={customerId}
               onChange={handleSelectCustomer}
-              className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#3B318A] bg-white font-medium text-gray-800"
-            >
-              <option value="">-- Type custom details below or choose customer --</option>
-              {customers.map(c => (
-                <option key={c.id} value={c.id}>
-                  {c.customerName} ({c.company}) — {c.purchasedProduct}
-                </option>
-              ))}
-            </select>
+              placeholder="Search or select existing customer..."
+              allowCustom={false}
+              maxDropdownHeight={350}
+              options={customers.map(c => ({
+                value: c.id,
+                label: `${c.customerName} (${c.company}) — ${c.purchasedProduct}`
+              }))}
+            />
           </div>
         )}
 

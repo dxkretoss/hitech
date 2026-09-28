@@ -30,7 +30,7 @@ export const CustomSelect = ({
   inputClassName = '',
   disabled = false,
   helperText,
-  maxDropdownHeight = 300,
+  maxDropdownHeight = 350,
   ...rest
 }) => {
   // Extract all preset values from options or children
@@ -87,7 +87,7 @@ export const CustomSelect = ({
     left: 0,
     width: 0,
     openUpward: false,
-    maxHeight: 280
+    maxHeight: 350
   });
 
   const triggerRef = useRef(null);
@@ -109,10 +109,11 @@ export const CustomSelect = ({
     const spaceBelow = window.innerHeight - rect.bottom - 12;
     const spaceAbove = rect.top - 12;
 
-    const shouldOpenUpward = spaceBelow < 240 && spaceAbove > spaceBelow;
+    const maxHeightLimit = typeof maxDropdownHeight === 'number' ? maxDropdownHeight : 350;
+    const shouldOpenUpward = spaceBelow < Math.min(260, maxHeightLimit) && spaceAbove > spaceBelow;
     const computedMaxHeight = Math.min(
-      typeof maxDropdownHeight === 'number' ? maxDropdownHeight : 300,
-      shouldOpenUpward ? Math.max(160, spaceAbove - 20) : Math.max(160, spaceBelow - 20)
+      maxHeightLimit,
+      shouldOpenUpward ? Math.max(180, spaceAbove - 20) : Math.max(180, spaceBelow - 20)
     );
 
     setDropdownCoords({
@@ -353,18 +354,18 @@ export const CustomSelect = ({
           }}
           className="bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100"
         >
-          {/* Search Bar for quick searching */}
-          {presetOptions.length > 4 && (
+          {/* Search Bar with search icon for quick searching */}
+          {presetOptions.length > 0 && (
             <div className="p-2 border-b border-gray-100 bg-slate-50/90 shrink-0">
               <div className="relative flex items-center">
-                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5" />
+                <Search className="w-4 h-4 text-gray-400 absolute left-2.5 pointer-events-none" />
                 <input
                   ref={searchInputRef}
                   type="text"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Search options..."
-                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg outline-none focus:border-[#3B318A] focus:ring-1 focus:ring-[#3B318A]"
+                  className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-gray-200 rounded-lg outline-none focus:border-[#3B318A] focus:ring-1 focus:ring-[#3B318A] text-gray-900 font-medium placeholder:text-gray-400"
                 />
                 {searchQuery && (
                   <button
@@ -372,17 +373,17 @@ export const CustomSelect = ({
                     onClick={() => setSearchQuery('')}
                     className="absolute right-2 text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
                   >
-                    <X className="w-3 h-3" />
+                    <X className="w-3.5 h-3.5" />
                   </button>
                 )}
               </div>
             </div>
           )}
 
-          {/* Scrollable Container with exact computed height */}
+          {/* Scrollable Container with max height 350px */}
           <div
-            style={{ maxHeight: dropdownCoords.maxHeight }}
-            className="overflow-y-auto p-1.5 space-y-1 divide-y divide-gray-50 scrollbar-thin"
+            style={{ maxHeight: `${dropdownCoords.maxHeight || 350}px` }}
+            className="overflow-y-auto p-1.5 space-y-1 divide-y divide-gray-50 scrollbar-thin max-h-[350px]"
           >
             {filteredOptions.length === 0 ? (
               <div className="py-6 text-center text-xs text-gray-400">

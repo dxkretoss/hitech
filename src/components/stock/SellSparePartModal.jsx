@@ -3,7 +3,7 @@ import PhoneInput from 'react-phone-input-2';
 import { useAuth } from '../../contexts/AuthContext.jsx';
 import { Modal } from '../ui/Modal.jsx';
 import { Button } from '../ui/Button.jsx';
-import { Input, Textarea } from '../ui/Input.jsx';
+import { Input, Textarea, CustomSelect } from '../ui/Input.jsx';
 import { db } from '../../services/db.js';
 import { Wrench, ShoppingBag, Building2, CheckCircle2, ShieldCheck, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -207,28 +207,20 @@ export const SellSparePartModal = ({
         )}
 
         {/* Select Spare Part Item */}
-        <div className="space-y-1.5">
-          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
-            <span>Select Spare Part from {selectedBranch} Warehouse</span> <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={partId}
-            onChange={handlePartChange}
-            required
-            disabled={branchSpareParts.length === 0}
-            className="w-full h-10 px-3 py-2 text-xs font-bold border border-gray-300 rounded-xl bg-white text-gray-900 outline-none focus:ring-2 focus:ring-[#3B318A] disabled:bg-gray-100 disabled:text-gray-400"
-          >
-            {branchSpareParts.length === 0 ? (
-              <option value="">No spare parts in {selectedBranch} stock (Admin must add stock)</option>
-            ) : (
-              branchSpareParts.map((part) => (
-                <option key={part.id} value={part.id}>
-                  {part.itemName} ({part.partNumber}) • {part.branch} Branch — {part.quantity} {part.unit || 'Units'} Available
-                </option>
-              ))
-            )}
-          </select>
-        </div>
+        <CustomSelect
+          label={`Select Spare Part from ${selectedBranch} Warehouse`}
+          value={partId}
+          onChange={handlePartChange}
+          placeholder={branchSpareParts.length === 0 ? `No spare parts in ${selectedBranch} stock` : "Search or select spare part..."}
+          disabled={branchSpareParts.length === 0}
+          allowCustom={false}
+          maxDropdownHeight={350}
+          required
+          options={branchSpareParts.map((part) => ({
+            value: part.id,
+            label: `${part.itemName} (${part.partNumber}) • ${part.quantity} ${part.unit || 'Units'} Available`
+          }))}
+        />
 
         {/* Selected Part Quick Info Pill */}
         {currentPart && (
