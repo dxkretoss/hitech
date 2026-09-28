@@ -80,14 +80,14 @@ export const LeadsPage = () => {
 
   const loadLeads = async () => {
     setLoading(true);
-    const data = await db.getLeads();
+    const data = await db.getLeads(currentUser);
     setLeads(data || []);
     setLoading(false);
   };
 
   useEffect(() => {
     loadLeads();
-  }, []);
+  }, [currentUser, role]);
 
   const handleOpenAdd = () => {
     setEditingLead(null);
@@ -234,35 +234,42 @@ export const LeadsPage = () => {
     }
   }, [userBranch, isAdmin]);
 
-  // Filtering by search term, branch, and status/type pills
-  const filteredLeads = leads.filter((l) => {
-    // Branch filter: if not admin, show only user branch
-    if (!isAdmin) {
-      if (l.branch && l.branch !== userBranch) return false;
-    } else if (selectedBranch !== 'ALL') {
-      if (l.branch && l.branch !== selectedBranch) return false;
-    }
+  // Filtering by search term, branch, and status/type pills (Newest data always shows first)
+  const filteredLeads = leads
+    .filter((l) => {
+      // Branch filter: if not admin, show only user branch
+      if (!isAdmin) {
+        if (l.branch && l.branch !== userBranch) return false;
+      } else if (selectedBranch !== 'ALL') {
+        if (l.branch && l.branch !== selectedBranch) return false;
+      }
 
-    const matchesSearch =
-      (l.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (l.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (l.phone || '').includes(searchTerm) ||
-      (l.branch || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (l.requirement || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (l.salesPersonName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (l.lossReason || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (l.lossRemark || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch =
+        (l.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.phone || '').includes(searchTerm) ||
+        (l.branch || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.requirement || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.salesPersonName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.lossReason || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.lossRemark || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    if (!matchesSearch) return false;
+      if (!matchesSearch) return false;
 
-    if (statusFilter === 'HOT') return l.leadType === 'Hot Lead' && l.status !== 'Won' && l.status !== 'Lost';
-    if (statusFilter === 'COLD') return l.leadType === 'Cold Lead' && l.status !== 'Won' && l.status !== 'Lost';
-    if (statusFilter === 'WON') return l.status === 'Won';
-    if (statusFilter === 'LOST') return l.status === 'Lost';
-    if (statusFilter === 'FUTURE') return l.status === 'Future Requirement';
+      if (statusFilter === 'HOT') return l.leadType === 'Hot Lead' && l.status !== 'Won' && l.status !== 'Lost';
+      if (statusFilter === 'COLD') return l.leadType === 'Cold Lead' && l.status !== 'Won' && l.status !== 'Lost';
+      if (statusFilter === 'WON') return l.status === 'Won';
+      if (statusFilter === 'LOST') return l.status === 'Lost';
+      if (statusFilter === 'FUTURE') return l.status === 'Future Requirement';
 
-    return true;
-  });
+      return true;
+    })
+    .sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA && timeB && timeA !== timeB) return timeB - timeA;
+      return (b.id || '').localeCompare(a.id || '');
+    });
 
   const getStatusBadge = (row) => {
     switch (row.status) {

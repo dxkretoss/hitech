@@ -36,8 +36,8 @@ export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   useEffect(() => {
     const loadNotifs = async () => {
       try {
-        const notifs = await db.getNotifications();
-        const activeList = notifs || [];
+        const notifs = await db.getNotifications(currentUser);
+        const activeList = (notifs || []).filter(n => !n.isRead);
         setNotificationCount(activeList.length);
         setHasUrgentAlerts(activeList.some(n => n.severity === 'urgent'));
       } catch (e) {
@@ -47,7 +47,7 @@ export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
     loadNotifs();
     const interval = setInterval(loadNotifs, 10000);
     return () => clearInterval(interval);
-  }, [location.pathname]);
+  }, [location.pathname, currentUser, role]);
 
   const navItems = [
     { label: 'Dashboard', path: isOwner ? '/admin/dashboard' : '/dashboard', icon: LayoutDashboard },

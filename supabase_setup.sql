@@ -3,16 +3,19 @@
 -- Copy and paste this entire script into your Supabase SQL Editor and click RUN
 -- ========================================================
 
--- 1. Profiles Table (User Accounts, Roles & Assigned Branch: Surat, Morbi, Rajkot)
+-- 1. Profiles Table (3 Standard Roles: Admin, Engineer, Sales across Branches: Surat, Morbi, Rajkot)
 CREATE TABLE IF NOT EXISTS public.profiles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
-  role TEXT CHECK (role IN ('Sales', 'Engineer', 'Owner', 'Admin')) DEFAULT 'Sales',
+  role TEXT CHECK (role IN ('Admin', 'Engineer', 'Sales', 'Owner')) DEFAULT 'Sales',
   branch TEXT CHECK (branch IN ('Surat', 'Morbi', 'Rajkot')) DEFAULT 'Surat',
   can_view_stock BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
+
+-- Normalize any legacy roles to Admin
+UPDATE public.profiles SET role = 'Admin' WHERE role IN ('Owner', 'SuperAdmin');
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS branch TEXT DEFAULT 'Surat';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS can_view_stock BOOLEAN DEFAULT false;
@@ -60,7 +63,7 @@ CREATE TRIGGER on_auth_user_created
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
 
--- 2. Leads Table (Sales Team Lead Logging with Branch, Hot/Cold Lead Classification & Loss Reason)
+-- 2. Leads Table (Sales Team Lead Logging with User Isolation & Ownership)
 CREATE TABLE IF NOT EXISTS public.leads (
   id TEXT PRIMARY KEY,
   customer_name TEXT NOT NULL,
@@ -76,8 +79,11 @@ CREATE TABLE IF NOT EXISTS public.leads (
   loss_date DATE,
   follow_up_date DATE DEFAULT CURRENT_DATE,
   notes TEXT,
+  user_id TEXT,
   sales_person_id TEXT,
   sales_person_name TEXT,
+  sales_person_email TEXT,
+  created_by TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -87,8 +93,11 @@ ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS lead_type TEXT DEFAULT 'Hot Le
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS loss_reason TEXT;
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS loss_remark TEXT;
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS loss_date DATE;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS user_id TEXT;
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS sales_person_id TEXT;
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS sales_person_name TEXT;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS sales_person_email TEXT;
+ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS created_by TEXT;
 ALTER TABLE public.leads ADD COLUMN IF NOT EXISTS notes TEXT;
 
 
@@ -103,14 +112,20 @@ CREATE TABLE IF NOT EXISTS public.future_opportunities (
   expected_purchase_month TEXT NOT NULL,
   reminder_date DATE NOT NULL,
   notes TEXT,
+  user_id TEXT,
   sales_person_id TEXT,
   sales_person_name TEXT,
+  sales_person_email TEXT,
+  created_by TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 ALTER TABLE public.future_opportunities ADD COLUMN IF NOT EXISTS branch TEXT DEFAULT 'Surat';
+ALTER TABLE public.future_opportunities ADD COLUMN IF NOT EXISTS user_id TEXT;
 ALTER TABLE public.future_opportunities ADD COLUMN IF NOT EXISTS sales_person_id TEXT;
 ALTER TABLE public.future_opportunities ADD COLUMN IF NOT EXISTS sales_person_name TEXT;
+ALTER TABLE public.future_opportunities ADD COLUMN IF NOT EXISTS sales_person_email TEXT;
+ALTER TABLE public.future_opportunities ADD COLUMN IF NOT EXISTS created_by TEXT;
 ALTER TABLE public.future_opportunities ADD COLUMN IF NOT EXISTS notes TEXT;
 
 
@@ -124,9 +139,13 @@ CREATE TABLE IF NOT EXISTS public.customers (
   purchased_product TEXT NOT NULL,
   installation_date DATE DEFAULT CURRENT_DATE,
   assigned_engineer TEXT,
+  assigned_engineer_id TEXT,
+  assigned_engineer_email TEXT,
   address TEXT,
   sales_person_id TEXT,
   sales_person_name TEXT,
+  sales_person_email TEXT,
+  created_by TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
@@ -135,8 +154,12 @@ ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'Mac
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS quantity NUMERIC DEFAULT 1;
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS unit_price NUMERIC DEFAULT 0;
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS serial_number TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS assigned_engineer_id TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS assigned_engineer_email TEXT;
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS sales_person_id TEXT;
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS sales_person_name TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS sales_person_email TEXT;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS created_by TEXT;
 
 
 -- 5. Services Table (Engineer Service Reports, Work Done, Parts Replaced & Next Scheduled Service Date)
@@ -151,23 +174,29 @@ CREATE TABLE IF NOT EXISTS public.services (
   scheduled_date DATE NOT NULL,
   status TEXT DEFAULT 'Upcoming',
   assigned_engineer TEXT,
+  assigned_engineer_id TEXT,
+  assigned_engineer_email TEXT,
   work_done TEXT,
   parts_replaced TEXT,
   completion_date DATE,
   next_service_date DATE,
   engineer_notes TEXT,
   notes TEXT,
+  created_by TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS branch TEXT DEFAULT 'Surat';
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS company TEXT;
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS product TEXT;
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS assigned_engineer_id TEXT;
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS assigned_engineer_email TEXT;
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS work_done TEXT;
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS parts_replaced TEXT;
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS completion_date DATE;
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS next_service_date DATE;
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS engineer_notes TEXT;
+ALTER TABLE public.services ADD COLUMN IF NOT EXISTS created_by TEXT;
 ALTER TABLE public.services ADD COLUMN IF NOT EXISTS notes TEXT;
 
 
@@ -283,3 +312,55 @@ SET
   unit_price = EXCLUDED.unit_price,
   compatible_models = EXCLUDED.compatible_models,
   notes = EXCLUDED.notes;
+
+
+-- =========================================================================
+-- 8. Notifications Table (Single Table with Array-Based User Isolation)
+-- Uses read_by and dismissed_by arrays so each user has their own read/dismiss state
+-- =========================================================================
+CREATE TABLE IF NOT EXISTS public.notifications (
+  id TEXT PRIMARY KEY,
+  title TEXT NOT NULL,
+  message TEXT NOT NULL,
+  type TEXT DEFAULT 'service_alert', -- 'today' | 'tomorrow' | 'followup' | 'service_alert'
+  severity TEXT DEFAULT 'normal', -- 'urgent' | 'warning' | 'normal'
+  recipient_role TEXT DEFAULT 'All', -- 'Admin' | 'Engineer' | 'Sales' | 'All'
+  recipient_email TEXT,
+  branch TEXT DEFAULT 'Surat',
+  service_id TEXT REFERENCES public.services(id) ON DELETE SET NULL,
+  lead_id TEXT REFERENCES public.leads(id) ON DELETE SET NULL,
+  days_remaining INTEGER,
+  date DATE,
+  read_by TEXT[] DEFAULT '{}',
+  dismissed_by TEXT[] DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Ensure all notification columns exist if table was already created
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS recipient_role TEXT DEFAULT 'All';
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS recipient_email TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS branch TEXT DEFAULT 'Surat';
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS service_id TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS lead_id TEXT;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS days_remaining INTEGER;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS date DATE;
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS read_by TEXT[] DEFAULT '{}';
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS dismissed_by TEXT[] DEFAULT '{}';
+
+-- Cleanup old notification_reads table if it exists
+DROP TABLE IF EXISTS public.notification_reads CASCADE;
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Public notifications access" ON public.notifications;
+CREATE POLICY "Public notifications access" ON public.notifications FOR ALL USING (true);
+
+-- Indexes for Fast Notifications Lookup
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient_role ON public.notifications(recipient_role);
+CREATE INDEX IF NOT EXISTS idx_notifications_recipient_email ON public.notifications(recipient_email);
+CREATE INDEX IF NOT EXISTS idx_notifications_branch ON public.notifications(branch);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON public.notifications(created_at DESC);
+
+
+

@@ -19,8 +19,23 @@ class SupabaseDatabase {
     { id: 'S-103', name: 'Rahul Verma', email: 'rahul.sales@hitechair.in' }
   ];
 
+  // Helper to extract the active logged-in user context
+  getCurrentUserContext(userContext = null) {
+    if (userContext && typeof userContext === 'object' && userContext.role) {
+      return userContext;
+    }
+    try {
+      const saved = localStorage.getItem('hitech_v2_user');
+      if (saved) return JSON.parse(saved);
+    } catch (e) {}
+    return null;
+  }
+
   // --- LEADS ---
-  async getLeads() {
+  async getLeads(userContext = null) {
+    const user = this.getCurrentUserContext(userContext);
+    let allLeads = [];
+
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
@@ -30,7 +45,7 @@ class SupabaseDatabase {
 
         if (error) throw error;
         if (data) {
-          return data.map(l => ({
+          allLeads = data.map(l => ({
             id: l.id,
             customerName: l.customer_name,
             company: l.company,
@@ -45,86 +60,60 @@ class SupabaseDatabase {
             lossDate: l.loss_date || l.lossDate || '',
             followUpDate: l.follow_up_date || new Date().toISOString().split('T')[0],
             notes: l.notes || '',
+            userId: l.user_id || '',
             salesPersonId: l.sales_person_id || '',
-            salesPersonName: l.sales_person_name || ''
+            salesPersonName: l.sales_person_name || '',
+            salesPersonEmail: l.sales_person_email || '',
+            createdBy: l.created_by || ''
           }));
         }
       } catch (e) {
         console.warn('Supabase fetch leads error, using local database fallback:', e);
+        allLeads = this.getLocal('hitech_v2_leads', fallbackLeads);
       }
+    } else {
+      allLeads = this.getLocal('hitech_v2_leads', fallbackLeads);
     }
 
-    const fallbackLeads = [
-      {
-        id: 'LD-101',
-        customerName: 'Rajesh Shah',
-        company: 'Reliance Textiles Ltd',
-        phone: '+91 98765-43210',
-        leadType: 'Hot Lead',
-        interestedProduct: '75 HP VFD Screw Compressor',
-        requirement: 'Urgent replacement for main unit in Surat plant',
-        status: 'New',
-        followUpDate: '2026-09-02',
-        notes: 'Decision maker visit scheduled. High budget allocation.',
-        salesPersonId: 'S-101',
-        salesPersonName: 'Vikram Mehta'
-      },
-      {
-        id: 'LD-102',
-        customerName: 'Kishore Patel',
-        company: 'Patel Engineering & Tools',
-        phone: '+91 98251-67890',
-        leadType: 'Cold Lead',
-        interestedProduct: '10-Ton Industrial Water Chiller',
-        requirement: 'Expansion planned for next quarter',
-        status: 'New',
-        followUpDate: '2026-09-15',
-        notes: 'Sent catalog and pricing. Will review in monthly meeting.',
-        salesPersonId: 'S-101',
-        salesPersonName: 'Vikram Mehta'
-      },
-      {
-        id: 'LD-103',
-        customerName: 'Anil Desai',
-        company: 'Navsari Ceramics',
-        phone: '+91 99799-17803',
-        leadType: 'Hot Lead',
-        interestedProduct: '50 HP Screw Air Compressor',
-        requirement: 'New production line commissioning',
-        status: 'Won',
-        followUpDate: '2026-08-30',
-        notes: 'PO received, advance payment processed.',
-        salesPersonId: 'S-101',
-        salesPersonName: 'Vikram Mehta'
-      },
-      {
-        id: 'LD-104',
-        customerName: 'Suresh Trivedi',
-        company: 'Apex Plastics GIDC',
-        phone: '+91 97234-56789',
-        leadType: 'Hot Lead',
-        interestedProduct: 'Refrigerated Air Dryer 100 CFM',
-        requirement: 'Air moisture elimination in line 2',
-        status: 'Lost',
-        lossReason: 'Price too high / Competitor cheaper',
-        lossRemark: 'Client chose a competitor who offered a 15% discount with immediate next-day delivery.',
-        lossDate: '2026-08-28',
-        followUpDate: '2026-08-28',
-        notes: 'Lost to local vendor on pricing.',
-        salesPersonId: 'S-101',
-        salesPersonName: 'Vikram Mehta'
-      }
-    ];
+    // Role-based User Isolation:
+    if (!user || user.role === 'Admin' || user.role === 'Owner' || user.role === 'SuperAdmin') {
+      return allLeads;
+    }
 
-    return this.getLocal('hitech_v2_leads', fallbackLeads);
+    if (user.role === 'Sales') {
+      const uId = user.id;
+      const uEmail = (user.email || '').toLowerCase().trim();
+      const uName = (user.name || '').toLowerCase().trim();
+
+      return allLeads.filter(l => {
+        const sId = l.salesPersonId || l.userId;
+        const sEmail = (l.salesPersonEmail || l.createdBy || '').toLowerCase().trim();
+        const sName = (l.salesPersonName || '').toLowerCase().trim();
+
+        return (
+          (uId && sId === uId) ||
+          (uEmail && sEmail && sEmail === uEmail) ||
+          (uName && sName && (sName === uName || sName.includes(uName) || uName.includes(sName)))
+        );
+      });
+    }
+
+    if (user.role === 'Engineer') {
+      return [];
+    }
+
+    return allLeads;
   }
 
   async addLead(lead, currentUser = null) {
     const id = `LD-${Date.now().toString().slice(-4)}`;
-    const salesPersonName = lead.salesPersonName || currentUser?.name || 'Vikram Mehta';
-    const salesPersonId = lead.salesPersonId || currentUser?.id || 'S-101';
+    const user = this.getCurrentUserContext(currentUser);
+    const salesPersonName = lead.salesPersonName || user?.name || 'Sales Rep';
+    const salesPersonId = lead.salesPersonId || user?.id || 'S-101';
+    const salesPersonEmail = lead.salesPersonEmail || user?.email || '';
+    const createdBy = user?.email || '';
     const leadType = lead.leadType || 'Hot Lead';
-    const branch = lead.branch || currentUser?.branch || 'Surat';
+    const branch = lead.branch || user?.branch || 'Surat';
 
     const newLead = {
       id,
@@ -141,8 +130,11 @@ class SupabaseDatabase {
       loss_date: lead.lossDate ? lead.lossDate : null,
       follow_up_date: (lead.followUpDate || lead.follow_up_date || new Date().toISOString().split('T')[0]),
       notes: lead.notes || '',
+      user_id: user?.id || null,
       sales_person_id: salesPersonId,
-      sales_person_name: salesPersonName
+      sales_person_name: salesPersonName,
+      sales_person_email: salesPersonEmail,
+      created_by: createdBy
     };
 
     if (isSupabaseConfigured()) {
@@ -172,8 +164,11 @@ class SupabaseDatabase {
       lossDate: newLead.loss_date,
       followUpDate: newLead.follow_up_date,
       notes: newLead.notes,
+      userId: user?.id || '',
       salesPersonId: salesPersonId,
-      salesPersonName: salesPersonName
+      salesPersonName: salesPersonName,
+      salesPersonEmail: salesPersonEmail,
+      createdBy: createdBy
     };
 
     const current = await this.getLeads();
@@ -190,8 +185,10 @@ class SupabaseDatabase {
         reminderDate: formatted.followUpDate,
         notes: formatted.notes,
         salesPersonId: salesPersonId,
-        salesPersonName: salesPersonName
-      });
+        salesPersonName: salesPersonName,
+        salesPersonEmail: salesPersonEmail,
+        createdBy: createdBy
+      }, currentUser);
     }
 
     return formatted;
@@ -445,7 +442,10 @@ class SupabaseDatabase {
   }
 
   // --- FUTURE OPPORTUNITIES ---
-  async getFutureOpportunities() {
+  async getFutureOpportunities(userContext = null) {
+    const user = this.getCurrentUserContext(userContext);
+    let allOpps = [];
+
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
@@ -455,7 +455,7 @@ class SupabaseDatabase {
 
         if (error) throw error;
         if (data) {
-          return data.map(o => ({
+          allOpps = data.map(o => ({
             id: o.id,
             customerName: o.customer_name,
             company: o.company,
@@ -464,33 +464,70 @@ class SupabaseDatabase {
             expectedPurchaseMonth: o.expected_purchase_month,
             reminderDate: o.reminder_date,
             notes: o.notes,
+            userId: o.user_id || '',
             salesPersonId: o.sales_person_id || 'S-101',
-            salesPersonName: o.sales_person_name || 'Vikram Mehta'
+            salesPersonName: o.sales_person_name || 'Vikram Mehta',
+            salesPersonEmail: o.sales_person_email || '',
+            createdBy: o.created_by || ''
           }));
         }
       } catch (e) {
         console.warn('Supabase fetch future opps error:', e);
+        allOpps = this.getLocal('hitech_v2_future_opps', []);
       }
+    } else {
+      allOpps = this.getLocal('hitech_v2_future_opps', []);
     }
-    return this.getLocal('hitech_v2_future_opps', []);
+
+    if (!user || user.role === 'Admin' || user.role === 'Owner' || user.role === 'SuperAdmin') {
+      return allOpps;
+    }
+
+    if (user.role === 'Sales') {
+      const uId = user.id;
+      const uEmail = (user.email || '').toLowerCase().trim();
+      const uName = (user.name || '').toLowerCase().trim();
+
+      return allOpps.filter(o => {
+        const sId = o.salesPersonId || o.userId;
+        const sEmail = (o.salesPersonEmail || o.createdBy || '').toLowerCase().trim();
+        const sName = (o.salesPersonName || '').toLowerCase().trim();
+
+        return (
+          (uId && sId === uId) ||
+          (uEmail && sEmail && sEmail === uEmail) ||
+          (uName && sName && (sName === uName || sName.includes(uName) || uName.includes(sName)))
+        );
+      });
+    }
+
+    return [];
   }
 
   async addFutureOpportunity(opp, currentUser = null) {
     const id = `FO-${Date.now().toString().slice(-4)}`;
-    const salesPersonName = opp.salesPersonName || currentUser?.name || 'Vikram Mehta';
-    const salesPersonId = opp.salesPersonId || currentUser?.id || 'S-101';
+    const user = this.getCurrentUserContext(currentUser);
+    const salesPersonName = opp.salesPersonName || user?.name || 'Sales Rep';
+    const salesPersonId = opp.salesPersonId || user?.id || 'S-101';
+    const salesPersonEmail = opp.salesPersonEmail || user?.email || '';
+    const createdBy = user?.email || '';
+    const branch = opp.branch || user?.branch || 'Surat';
 
     const newOpp = {
       id,
       customer_name: opp.customerName,
       company: opp.company,
       phone: opp.phone,
+      branch: branch,
       requirement: opp.requirement,
       expected_purchase_month: opp.expectedPurchaseMonth || '6 Months Later',
       reminder_date: opp.reminderDate || new Date().toISOString().split('T')[0],
       notes: opp.notes || '',
+      user_id: user?.id || null,
       sales_person_id: salesPersonId,
-      sales_person_name: salesPersonName
+      sales_person_name: salesPersonName,
+      sales_person_email: salesPersonEmail,
+      created_by: createdBy
     };
 
     if (isSupabaseConfigured()) {
@@ -506,12 +543,16 @@ class SupabaseDatabase {
       customerName: opp.customerName,
       company: opp.company,
       phone: opp.phone,
+      branch: branch,
       requirement: opp.requirement,
       expectedPurchaseMonth: newOpp.expected_purchase_month,
       reminderDate: newOpp.reminder_date,
       notes: newOpp.notes,
+      userId: user?.id || '',
       salesPersonId: salesPersonId,
-      salesPersonName: salesPersonName
+      salesPersonName: salesPersonName,
+      salesPersonEmail: salesPersonEmail,
+      createdBy: createdBy
     };
 
     const current = await this.getFutureOpportunities();
@@ -532,7 +573,10 @@ class SupabaseDatabase {
   }
 
   // --- CUSTOMERS ---
-  async getCustomers() {
+  async getCustomers(userContext = null) {
+    const user = this.getCurrentUserContext(userContext);
+    let allCustomers = [];
+
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase
@@ -542,7 +586,7 @@ class SupabaseDatabase {
 
         if (error) throw error;
         if (data) {
-          return data.map(c => ({
+          allCustomers = data.map(c => ({
             id: c.id,
             customerName: c.customer_name,
             company: c.company,
@@ -555,94 +599,66 @@ class SupabaseDatabase {
             serialNumber: c.serial_number || '',
             installationDate: c.installation_date,
             assignedEngineer: c.assigned_engineer,
+            assignedEngineerId: c.assigned_engineer_id,
+            assignedEngineerEmail: c.assigned_engineer_email,
             address: c.address,
             salesPersonId: c.sales_person_id || 'S-101',
-            salesPersonName: c.sales_person_name || 'Vikram Mehta'
+            salesPersonName: c.sales_person_name || 'Vikram Mehta',
+            salesPersonEmail: c.sales_person_email || '',
+            createdBy: c.created_by || ''
           }));
         }
       } catch (e) {
         console.warn('Supabase fetch customers error:', e);
+        allCustomers = this.getLocal('hitech_v2_customers', fallbackCustomers);
       }
+    } else {
+      allCustomers = this.getLocal('hitech_v2_customers', fallbackCustomers);
     }
 
-    const fallbackCustomers = [
-      {
-        id: 'CUST-801',
-        customerName: 'Pravin Solanki',
-        company: 'Surat Silk Prints & Fabrics',
-        phone: '+91 98251 12345',
-        branch: 'Surat',
-        category: 'Machine',
-        purchasedProduct: 'HAT 37 - 50 HP (37 kW) Rotary Screw Compressor',
-        installationDate: '2026-08-10',
-        assignedEngineer: 'Sanjay Patel',
-        address: 'Plot 42, GIDC Sachin, Surat',
-        salesPersonId: 'S-101',
-        salesPersonName: 'Vikram Mehta'
-      },
-      {
-        id: 'CUST-802',
-        customerName: 'Haresh Patel',
-        company: 'Morbi Ceramic Glazes Ltd',
-        phone: '+91 98252 23456',
-        branch: 'Morbi',
-        category: 'Machine',
-        purchasedProduct: 'HAT 75 - 100 HP (75 kW) Rotary Screw Compressor',
-        installationDate: '2026-08-15',
-        assignedEngineer: 'Rameshwar Joshi',
-        address: '8-A National Highway, Morbi',
-        salesPersonId: 'S-101',
-        salesPersonName: 'Vikram Mehta'
-      },
-      {
-        id: 'CUST-803',
-        customerName: 'Dharmesh Vora',
-        company: 'Rajkot Precision Forgings',
-        phone: '+91 98253 34567',
-        branch: 'Rajkot',
-        category: 'Machine',
-        purchasedProduct: 'HAT 22 - 30 HP (22 kW) Rotary Screw Compressor',
-        installationDate: '2026-08-20',
-        assignedEngineer: 'Ketan Solanki',
-        address: 'Aji GIDC Industrial Area, Rajkot',
-        salesPersonId: 'S-102',
-        salesPersonName: 'Anita Sharma'
-      },
-      {
-        id: 'CUST-804',
-        customerName: 'Mahesh Balar',
-        company: 'Diamond Laser Cutting Hub',
-        phone: '+91 98254 45678',
-        branch: 'Surat',
-        category: 'Spare Part',
-        purchasedProduct: 'Air Filter Cartridge (HAT 4 - HAT 11) (2 Units)',
-        quantity: 2,
-        unitPrice: 1800,
-        installationDate: '2026-08-22',
-        assignedEngineer: 'Direct Spare Part Sale',
-        address: 'Katargam Diamond Zone, Surat',
-        salesPersonId: 'S-101',
-        salesPersonName: 'Vikram Mehta'
-      },
-      {
-        id: 'CUST-805',
-        customerName: 'Kishore Jadeja',
-        company: 'Rotary Valves & Engineering',
-        phone: '+91 98255 56789',
-        branch: 'Morbi',
-        category: 'Spare Part',
-        purchasedProduct: 'Synthetic Compressor Lubricant (ISO VG 46 - 20L) (1 Pail)',
-        quantity: 1,
-        unitPrice: 7800,
-        installationDate: '2026-08-25',
-        assignedEngineer: 'Direct Spare Part Sale',
-        address: 'Wankaner Road, Morbi',
-        salesPersonId: 'S-101',
-        salesPersonName: 'Vikram Mehta'
-      }
-    ];
+    if (!user || user.role === 'Admin' || user.role === 'Owner' || user.role === 'SuperAdmin') {
+      return allCustomers;
+    }
 
-    return this.getLocal('hitech_v2_customers', fallbackCustomers);
+    if (user.role === 'Sales') {
+      const uId = user.id;
+      const uEmail = (user.email || '').toLowerCase().trim();
+      const uName = (user.name || '').toLowerCase().trim();
+
+      return allCustomers.filter(c => {
+        const sId = c.salesPersonId;
+        const sEmail = (c.salesPersonEmail || c.createdBy || '').toLowerCase().trim();
+        const sName = (c.salesPersonName || '').toLowerCase().trim();
+
+        return (
+          (uId && sId === uId) ||
+          (uEmail && sEmail && sEmail === uEmail) ||
+          (uName && sName && (sName === uName || sName.includes(uName) || uName.includes(sName)))
+        );
+      });
+    }
+
+    if (user.role === 'Engineer') {
+      const uId = user.id;
+      const uEmail = (user.email || '').toLowerCase().trim();
+      const uName = (user.name || '').toLowerCase().trim();
+
+      return allCustomers.filter(c => {
+        const engId = c.assignedEngineerId;
+        const engEmail = (c.assignedEngineerEmail || '').toLowerCase().trim();
+        const engName = (c.assignedEngineer || '').toLowerCase().trim();
+        const branchMatch = user.branch && c.branch && c.branch.toLowerCase() === user.branch.toLowerCase();
+
+        return (
+          (uId && engId === uId) ||
+          (uEmail && engEmail && engEmail === uEmail) ||
+          (uName && engName && (engName === uName || engName.includes(uName) || uName.includes(engName))) ||
+          branchMatch
+        );
+      });
+    }
+
+    return allCustomers;
   }
 
   async getCustomerById(id) {
@@ -666,41 +682,83 @@ class SupabaseDatabase {
     this.saveLocal('hitech_v2_services', services.filter(s => s.customerId !== id));
   }
 
-  // --- SERVICES ---
-  async getServices() {
+  // Save Direct Customer Sale (Creates initial service for Field Engineer)
+  async addCustomerSale(saleData, currentUser = null) {
+    const custId = `CUST-${Date.now().toString().slice(-4)}`;
+    const user = this.getCurrentUserContext(currentUser);
+    const installDate = saleData.installationDate || new Date().toISOString().split('T')[0];
+    const salesPersonName = saleData.salesPersonName || user?.name || 'Sales Rep';
+    const salesPersonId = saleData.salesPersonId || user?.id || 'S-101';
+    const salesPersonEmail = saleData.salesPersonEmail || user?.email || '';
+    const engineer = saleData.assignedEngineer || 'Sanjay Patel';
+    const branch = saleData.dispatchBranch || saleData.branch || user?.branch || 'Surat';
+    const category = saleData.category || (saleData.purchasedProduct?.toLowerCase().includes('filter') || saleData.purchasedProduct?.toLowerCase().includes('oil') || saleData.purchasedProduct?.toLowerCase().includes('spare') ? 'Spare Part' : 'Machine');
+    const quantity = Number(saleData.quantity) || 1;
+    const unitPrice = Number(saleData.unitPrice) || 0;
+    const serialNumber = saleData.serialNumber || '';
+
+    const newCust = {
+      id: custId,
+      customer_name: saleData.customerName,
+      company: saleData.company,
+      phone: saleData.phone,
+      branch: branch,
+      category: category,
+      purchased_product: saleData.purchasedProduct,
+      quantity: quantity,
+      unit_price: unitPrice,
+      serial_number: serialNumber,
+      installation_date: installDate,
+      assigned_engineer: engineer,
+      address: saleData.address || `${saleData.company || saleData.customerName} Site, Gujarat`,
+      sales_person_id: salesPersonId,
+      sales_person_name: salesPersonName,
+      sales_person_email: salesPersonEmail,
+      created_by: user?.email || ''
+    };
+
     if (isSupabaseConfigured()) {
       try {
-        const { data, error } = await supabase
-          .from('services')
-          .select('*')
-          .order('scheduled_date', { ascending: true });
-
-        if (error) throw error;
-        if (data) {
-          return data.map(s => ({
-            id: s.id,
-            customerId: s.customer_id,
-            customerName: s.customer_name,
-            company: s.company,
-            branch: s.branch || 'Surat',
-            product: s.product,
-            serviceName: s.service_name,
-            scheduledDate: s.scheduled_date,
-            status: s.status,
-            assignedEngineer: s.assigned_engineer,
-            workDone: s.work_done || s.workDone || '',
-            partsReplaced: s.parts_replaced || s.partsReplaced || '',
-            completionDate: s.completion_date || s.completionDate || '',
-            nextServiceDate: s.next_service_date || s.nextServiceDate || '',
-            engineerNotes: s.engineer_notes || s.engineerNotes || '',
-            notes: s.notes || ''
-          }));
-        }
+        await supabase.from('customers').insert([newCust]);
       } catch (e) {
-        console.warn('Supabase fetch services error:', e);
+        console.error('Supabase insert direct customer error:', e);
       }
     }
 
+    const formattedCust = {
+      id: custId,
+      customerName: saleData.customerName,
+      company: saleData.company,
+      phone: saleData.phone,
+      branch: branch,
+      category: category,
+      purchasedProduct: saleData.purchasedProduct,
+      quantity: quantity,
+      unitPrice: unitPrice,
+      serialNumber: serialNumber,
+      installationDate: installDate,
+      assignedEngineer: engineer,
+      address: newCust.address,
+      salesPersonId: salesPersonId,
+      salesPersonName: salesPersonName,
+      salesPersonEmail: salesPersonEmail,
+      createdBy: user?.email || ''
+    };
+
+    const currentCusts = await this.getCustomers();
+    this.saveLocal('hitech_v2_customers', [formattedCust, ...currentCusts]);
+
+    // Create Initial Service for Field Engineer (for machines)
+    if (category !== 'Spare Part' && engineer !== 'Direct Spare Part Sale') {
+      await this.generateInitialServiceForCustomer(formattedCust, saleData.nextServiceDate, user);
+    }
+
+    return formattedCust;
+  }
+
+  // --- SERVICES ---
+  async getServices(userContext = null) {
+    const user = this.getCurrentUserContext(userContext);
     const fallbackServices = [
       {
         id: 'SRV-101',
@@ -752,7 +810,72 @@ class SupabaseDatabase {
       }
     ];
 
-    return this.getLocal('hitech_v2_services', fallbackServices);
+    let allServices = [];
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase
+          .from('services')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) throw error;
+        if (data) {
+          allServices = data.map(s => ({
+            id: s.id,
+            customerId: s.customer_id,
+            customerName: s.customer_name,
+            company: s.company,
+            branch: s.branch || 'Surat',
+            product: s.product,
+            serviceName: s.service_name,
+            scheduledDate: s.scheduled_date,
+            status: s.status,
+            assignedEngineer: s.assigned_engineer,
+            assignedEngineerId: s.assigned_engineer_id,
+            assignedEngineerEmail: s.assigned_engineer_email,
+            workDone: s.work_done || s.workDone || '',
+            partsReplaced: s.parts_replaced || s.partsReplaced || '',
+            completionDate: s.completion_date || s.completionDate || '',
+            nextServiceDate: s.next_service_date || s.nextServiceDate || '',
+            engineerNotes: s.engineer_notes || s.engineerNotes || '',
+            notes: s.notes || '',
+            createdBy: s.created_by || '',
+            createdAt: s.created_at || s.createdAt || ''
+          }));
+        }
+      } catch (e) {
+        console.warn('Supabase fetch services error:', e);
+        allServices = this.getLocal('hitech_v2_services', fallbackServices);
+      }
+    } else {
+      allServices = this.getLocal('hitech_v2_services', fallbackServices);
+    }
+
+    // Role-based User Isolation:
+    if (!user || user.role === 'Admin' || user.role === 'Owner' || user.role === 'SuperAdmin') {
+      return allServices;
+    }
+
+    if (user.role === 'Engineer') {
+      const uId = user.id;
+      const uEmail = (user.email || '').toLowerCase().trim();
+      const uName = (user.name || '').toLowerCase().trim();
+
+      return allServices.filter(s => {
+        const engId = s.assignedEngineerId;
+        const engEmail = (s.assignedEngineerEmail || s.createdBy || '').toLowerCase().trim();
+        const engName = (s.assignedEngineer || '').toLowerCase().trim();
+
+        return (
+          (uId && engId === uId) ||
+          (uEmail && engEmail && engEmail === uEmail) ||
+          (uName && engName && (engName === uName || engName.includes(uName) || uName.includes(engName)))
+        );
+      });
+    }
+
+    return allServices;
   }
 
   async getServicesByCustomer(customerId) {
@@ -1025,50 +1148,6 @@ class SupabaseDatabase {
     });
 
     return summary;
-  }
-
-  // --- NOTIFICATIONS ---
-  async getNotifications() {
-    if (isSupabaseConfigured()) {
-      try {
-        const { data, error } = await supabase
-          .from('notifications')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        if (data) return data;
-      } catch (e) {
-        console.warn('Supabase fetch notifications error:', e);
-      }
-    }
-    return this.getLocal('hitech_v2_notifications', [
-      { id: '1', title: 'New Sales Lead Added', message: 'Rajesh Shah (Reliance Textiles) logged by Vikram Mehta.', type: 'info', read: false },
-      { id: '2', title: 'Automated 2-Month Service Reminder', message: 'Service #1 due for Surat Diamond Craft (Eng: Sanjay Patel).', type: 'warning', read: false }
-    ]);
-  }
-
-  async deleteNotification(id) {
-    if (isSupabaseConfigured()) {
-      try {
-        await supabase.from('notifications').delete().eq('id', id);
-      } catch (e) {
-        console.error('Supabase delete notification error:', e);
-      }
-    }
-    const current = await this.getNotifications();
-    this.saveLocal('hitech_v2_notifications', current.filter(n => n.id !== id));
-  }
-
-  async clearAllNotifications() {
-    if (isSupabaseConfigured()) {
-      try {
-        await supabase.from('notifications').delete().neq('id', '0');
-      } catch (e) {
-        console.error('Supabase clear notifications error:', e);
-      }
-    }
-    this.saveLocal('hitech_v2_notifications', []);
   }
 
   // --- STOCK / INVENTORY (Branch-Wise: Surat, Morbi, Rajkot) ---
@@ -1655,22 +1734,35 @@ class SupabaseDatabase {
     this.saveLocal('hitech_v2_stock_items', current.filter(s => s.id !== id));
   }
 
-  // --- NOTIFICATIONS & DUE DATE ALERTS ---
-  async getNotifications() {
-    const dismissed = this.getLocal('hitech_v2_dismissed_notifications', []);
-    const dismissedSet = new Set(dismissed);
+  // --- NOTIFICATIONS & DUE DATE ALERTS (Managed via public.notifications Table) ---
+  async getNotifications(userContext = null) {
+    let user = userContext;
+    if (!user) {
+      try {
+        const saved = localStorage.getItem('hitech_v2_user');
+        if (saved) user = JSON.parse(saved);
+      } catch (e) {}
+    }
+
+    const role = user?.role || (typeof userContext === 'string' ? userContext : 'Owner');
+    const isOwner = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
+    const isEngineer = role === 'Engineer';
+    const isSales = role === 'Sales';
+    const userName = (user?.name || user?.email || '').toLowerCase();
+    const userBranch = (user?.branch || '').toLowerCase();
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    const generated = [];
+
+    // 1. Fetch live services and leads to generate dynamic due alerts
     const [services, leads] = await Promise.all([
       this.getServices(),
       this.getLeads()
     ]);
 
-    const generated = [];
-
-    // 1. Service Due Date Notifications (3 Days = Red, 1 Week = Orange)
+    // Generate service maintenance alerts
     (services || []).forEach((srv) => {
       if (srv.status === 'Completed') return;
       if (!srv.scheduledDate) return;
@@ -1681,53 +1773,49 @@ class SupabaseDatabase {
 
       const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-      // Overdue / Today / <= 3 Days: RED / URGENT
       if (diffDays <= 3) {
         let title = '';
-        let type = 'today';
-        let severity = 'urgent'; // red
         if (diffDays < 0) {
-          title = `⚠️ Overdue Service Alert: ${srv.customerName}`;
+          title = `Overdue Service Alert: ${srv.customerName}`;
         } else if (diffDays === 0) {
-          title = `🚨 Service Due Today: ${srv.customerName}`;
+          title = `Service Due Today: ${srv.customerName}`;
         } else {
-          title = `🔴 Urgent Service Due in ${diffDays} Day${diffDays === 1 ? '' : 's'}: ${srv.customerName}`;
+          title = `Urgent Service Due in ${diffDays} Day${diffDays === 1 ? '' : 's'}: ${srv.customerName}`;
         }
 
-        const notifId = `notif-srv-${srv.id}-${srv.scheduledDate}`;
-        if (!dismissedSet.has(notifId)) {
-          generated.push({
-            id: notifId,
-            serviceId: srv.id,
-            title,
-            type,
-            severity,
-            daysRemaining: diffDays,
-            message: `${srv.serviceName || 'Scheduled Service'} for ${srv.customerName} (${srv.company || 'Client'}) is due on ${srv.scheduledDate}. Assigned Engineer: ${srv.assignedEngineer || 'Unassigned'}.`,
-            date: srv.scheduledDate,
-            createdAt: new Date().toISOString()
-          });
-        }
+        generated.push({
+          id: `notif-srv-${srv.id}-${srv.scheduledDate}`,
+          serviceId: srv.id,
+          title,
+          type: 'today',
+          severity: 'urgent',
+          daysRemaining: diffDays,
+          message: `${srv.serviceName || 'Scheduled Service'} for ${srv.customerName} (${srv.company || 'Client'}) is due on ${srv.scheduledDate}. Assigned Engineer: ${srv.assignedEngineer || 'Unassigned'}.`,
+          date: srv.scheduledDate,
+          recipientRole: 'Engineer',
+          branch: srv.branch || 'Surat',
+          isRead: false,
+          createdAt: new Date().toISOString()
+        });
       } else if (diffDays <= 7) {
-        // <= 7 Days: ORANGE / 1 WEEK WARNING
-        const notifId = `notif-srv-${srv.id}-${srv.scheduledDate}`;
-        if (!dismissedSet.has(notifId)) {
-          generated.push({
-            id: notifId,
-            serviceId: srv.id,
-            title: `🟠 Upcoming Service (1 Week / ${diffDays} Days Left): ${srv.customerName}`,
-            type: 'tomorrow',
-            severity: 'warning', // orange
-            daysRemaining: diffDays,
-            message: `Upcoming ${srv.serviceName || 'Service'} for ${srv.customerName} (${srv.company || 'Client'}) on ${srv.scheduledDate}. Assigned Engineer: ${srv.assignedEngineer || 'Unassigned'}.`,
-            date: srv.scheduledDate,
-            createdAt: new Date().toISOString()
-          });
-        }
+        generated.push({
+          id: `notif-srv-${srv.id}-${srv.scheduledDate}`,
+          serviceId: srv.id,
+          title: `Upcoming Service (1 Week / ${diffDays} Days Left): ${srv.customerName}`,
+          type: 'tomorrow',
+          severity: 'warning',
+          daysRemaining: diffDays,
+          message: `Upcoming ${srv.serviceName || 'Service'} for ${srv.customerName} (${srv.company || 'Client'}) on ${srv.scheduledDate}. Assigned Engineer: ${srv.assignedEngineer || 'Unassigned'}.`,
+          date: srv.scheduledDate,
+          recipientRole: 'Engineer',
+          branch: srv.branch || 'Surat',
+          isRead: false,
+          createdAt: new Date().toISOString()
+        });
       }
     });
 
-    // 2. Pending Lead Follow-up Due Dates
+    // Generate lead follow-up alerts
     (leads || []).forEach((lead) => {
       if (lead.status === 'Won' || lead.status === 'Lost') return;
       if (!lead.followUpDate) return;
@@ -1738,44 +1826,308 @@ class SupabaseDatabase {
 
       const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
 
-      if (diffDays <= 3) {
-        const notifId = `notif-lead-${lead.id}-${lead.followUpDate}`;
-        if (!dismissedSet.has(notifId)) {
-          generated.push({
-            id: notifId,
-            leadId: lead.id,
-            title: diffDays <= 0 ? `📞 Lead Follow-up Due: ${lead.customerName}` : `📞 Follow-up in ${diffDays}d: ${lead.customerName}`,
-            type: 'followup',
-            severity: diffDays <= 0 ? 'urgent' : 'warning',
-            daysRemaining: diffDays,
-            message: `Lead follow-up with ${lead.customerName} (${lead.company}) regarding ${lead.interestedProduct || 'Equipment'}. Sales: ${lead.salesPersonName || 'Sales Rep'}.`,
-            date: lead.followUpDate,
-            createdAt: new Date().toISOString()
-          });
-        }
+      let title = '';
+      let severity = 'normal';
+
+      if (diffDays < 0) {
+        title = `Overdue Follow-up (${Math.abs(diffDays)}d overdue): ${lead.customerName}`;
+        severity = 'urgent';
+      } else if (diffDays === 0) {
+        title = `Lead Follow-up Due Today: ${lead.customerName}`;
+        severity = 'urgent';
+      } else if (diffDays <= 3) {
+        title = `Urgent Follow-up in ${diffDays}d: ${lead.customerName}`;
+        severity = 'urgent';
+      } else if (diffDays <= 7) {
+        title = `Follow-up Due in 1 Week (${diffDays}d): ${lead.customerName}`;
+        severity = 'warning';
+      } else {
+        title = `Upcoming Follow-up (${lead.followUpDate}): ${lead.customerName}`;
+        severity = 'normal';
       }
+
+      generated.push({
+        id: `notif-lead-${lead.id}-${lead.followUpDate}`,
+        leadId: lead.id,
+        title,
+        type: 'followup',
+        severity,
+        daysRemaining: diffDays,
+        message: `Lead follow-up with ${lead.customerName} (${lead.company || 'Client'}) regarding ${lead.interestedProduct || lead.requirement || 'Compressor / Equipment'}. Sales: ${lead.salesPersonName || 'Sales Team'}.`,
+        date: lead.followUpDate,
+        recipientRole: 'Sales',
+        branch: lead.branch || 'Surat',
+        isRead: false,
+        createdAt: new Date().toISOString()
+      });
     });
 
-    // Sort by urgency: smallest daysRemaining first
-    generated.sort((a, b) => (a.daysRemaining ?? 99) - (b.daysRemaining ?? 99));
-    return generated;
+    const userEmail = userContext?.email || (() => {
+      try {
+        const u = JSON.parse(localStorage.getItem('hitech_v2_user') || '{}');
+        return u.email || 'user@hitech.com';
+      } catch (e) {
+        return 'user@hitech.com';
+      }
+    })();
+
+    // 2. Fetch and sync with Supabase notifications table
+    if (isSupabaseConfigured()) {
+      try {
+        if (generated.length > 0) {
+          const rowsToUpsert = generated.map(g => ({
+            id: g.id,
+            title: g.title,
+            message: g.message,
+            type: g.type,
+            severity: g.severity,
+            recipient_role: g.recipientRole,
+            branch: g.branch,
+            service_id: g.serviceId || null,
+            lead_id: g.leadId || null,
+            days_remaining: g.daysRemaining,
+            date: g.date
+          }));
+          await supabase.from('notifications').upsert(rowsToUpsert, { onConflict: 'id', ignoreDuplicates: true });
+        }
+
+        let query = supabase.from('notifications').select('*').order('created_at', { ascending: false });
+        if (!isOwner) {
+          if (isEngineer) {
+            query = query.in('recipient_role', ['Engineer', 'All']);
+          } else if (isSales) {
+            query = query.in('recipient_role', ['Sales', 'All']);
+          }
+        }
+
+        const { data: dbNotifs, error: notifErr } = await query;
+
+        if (!notifErr && dbNotifs) {
+          const leadsMap = new Map((leads || []).map(l => [l.id, l]));
+          const servicesMap = new Map((services || []).map(s => [s.id, s]));
+
+          const list = dbNotifs
+            .filter(n => {
+              const dismissedBy = Array.isArray(n.dismissed_by) ? n.dismissed_by : [];
+              if (dismissedBy.includes(userEmail)) return false;
+
+              // User-specific filtering:
+              if (!isOwner) {
+                if (isSales && n.lead_id) {
+                  const lead = leadsMap.get(n.lead_id);
+                  if (lead) {
+                    const uId = user?.id;
+                    const uEmail = (user?.email || '').toLowerCase().trim();
+                    const uName = (user?.name || '').toLowerCase().trim();
+                    const sId = lead.salesPersonId || lead.userId;
+                    const sEmail = (lead.salesPersonEmail || lead.createdBy || '').toLowerCase().trim();
+                    const sName = (lead.salesPersonName || '').toLowerCase().trim();
+
+                    const match = (uId && sId === uId) || (uEmail && sEmail && sEmail === uEmail) || (uName && sName && (sName === uName || sName.includes(uName) || uName.includes(sName)));
+                    if (!match) return false;
+                  }
+                } else if (isEngineer && n.service_id) {
+                  const srv = servicesMap.get(n.service_id);
+                  if (srv) {
+                    const uId = user?.id;
+                    const uEmail = (user?.email || '').toLowerCase().trim();
+                    const uName = (user?.name || '').toLowerCase().trim();
+                    const engId = srv.assignedEngineerId;
+                    const engEmail = (srv.assignedEngineerEmail || srv.createdBy || '').toLowerCase().trim();
+                    const engName = (srv.assignedEngineer || '').toLowerCase().trim();
+
+                    const match = (uId && engId === uId) || (uEmail && engEmail && engEmail === uEmail) || (uName && engName && (engName === uName || engName.includes(uName) || uName.includes(engName)));
+                    if (!match) return false;
+                  }
+                }
+              }
+
+              return true;
+            })
+            .map(n => {
+              const readBy = Array.isArray(n.read_by) ? n.read_by : [];
+              return {
+                id: n.id,
+                title: n.title,
+                message: n.message,
+                type: n.type,
+                severity: n.severity,
+                isRead: readBy.includes(userEmail) || n.is_read === true,
+                recipientRole: n.recipient_role,
+                recipientEmail: n.recipient_email,
+                branch: n.branch,
+                serviceId: n.service_id,
+                leadId: n.lead_id,
+                daysRemaining: n.days_remaining,
+                date: n.date,
+                createdAt: n.created_at
+              };
+            });
+          return list.sort((a, b) => (a.daysRemaining ?? 99) - (b.daysRemaining ?? 99));
+        }
+      } catch (e) {
+        console.warn('Supabase notifications fetch error:', e);
+      }
+    }
+
+    const dismissedKey = `hitech_v2_dismissed_${userEmail}`;
+    const readKey = `hitech_v2_read_${userEmail}`;
+    const dismissed = this.getLocal(dismissedKey, []);
+    const readList = this.getLocal(readKey, []);
+    const dismissedSet = new Set(dismissed);
+    const readSet = new Set(readList);
+
+    return generated
+      .filter(g => {
+        if (dismissedSet.has(g.id)) return false;
+        if (!isOwner) {
+          if (isEngineer && g.recipientRole !== 'Engineer' && g.recipientRole !== 'All') return false;
+          if (isSales && g.recipientRole !== 'Sales' && g.recipientRole !== 'All') return false;
+        }
+        return true;
+      })
+      .map(g => ({
+        ...g,
+        isRead: readSet.has(g.id)
+      }))
+      .sort((a, b) => (a.daysRemaining ?? 99) - (b.daysRemaining ?? 99));
   }
 
-  async deleteNotification(id) {
-    const dismissed = this.getLocal('hitech_v2_dismissed_notifications', []);
-    if (!dismissed.includes(id)) {
-      dismissed.push(id);
-      this.saveLocal('hitech_v2_dismissed_notifications', dismissed);
+  async markNotificationAsRead(id, userContext = null) {
+    const userEmail = userContext?.email || (() => {
+      try {
+        const u = JSON.parse(localStorage.getItem('hitech_v2_user') || '{}');
+        return u.email || 'user@hitech.com';
+      } catch (e) {
+        return 'user@hitech.com';
+      }
+    })();
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: row } = await supabase.from('notifications').select('read_by').eq('id', id).single();
+        const currentReadBy = Array.isArray(row?.read_by) ? row.read_by : [];
+        if (!currentReadBy.includes(userEmail)) {
+          await supabase.from('notifications').update({
+            read_by: [...currentReadBy, userEmail]
+          }).eq('id', id);
+        }
+      } catch (e) {
+        console.error('Supabase mark notification read error:', e);
+      }
+    }
+
+    const readKey = `hitech_v2_read_${userEmail}`;
+    const readList = this.getLocal(readKey, []);
+    if (!readList.includes(id)) {
+      readList.push(id);
+      this.saveLocal(readKey, readList);
     }
     return true;
   }
 
-  async clearAllNotifications() {
-    const notifs = await this.getNotifications();
+  async markAllNotificationsAsRead(userContext = null) {
+    const userEmail = userContext?.email || (() => {
+      try {
+        const u = JSON.parse(localStorage.getItem('hitech_v2_user') || '{}');
+        return u.email || 'user@hitech.com';
+      } catch (e) {
+        return 'user@hitech.com';
+      }
+    })();
+
+    const notifs = await this.getNotifications(userContext);
     const ids = notifs.map(n => n.id);
-    const dismissed = this.getLocal('hitech_v2_dismissed_notifications', []);
+
+    if (isSupabaseConfigured() && ids.length > 0) {
+      try {
+        for (const id of ids) {
+          const { data: row } = await supabase.from('notifications').select('read_by').eq('id', id).single();
+          const currentReadBy = Array.isArray(row?.read_by) ? row.read_by : [];
+          if (!currentReadBy.includes(userEmail)) {
+            await supabase.from('notifications').update({
+              read_by: [...currentReadBy, userEmail]
+            }).eq('id', id);
+          }
+        }
+      } catch (e) {
+        console.error('Supabase mark all notifications read error:', e);
+      }
+    }
+
+    const readKey = `hitech_v2_read_${userEmail}`;
+    const readList = this.getLocal(readKey, []);
+    const merged = Array.from(new Set([...readList, ...ids]));
+    this.saveLocal(readKey, merged);
+    return true;
+  }
+
+  async deleteNotification(id, userContext = null) {
+    const userEmail = userContext?.email || (() => {
+      try {
+        const u = JSON.parse(localStorage.getItem('hitech_v2_user') || '{}');
+        return u.email || 'user@hitech.com';
+      } catch (e) {
+        return 'user@hitech.com';
+      }
+    })();
+
+    if (isSupabaseConfigured()) {
+      try {
+        const { data: row } = await supabase.from('notifications').select('dismissed_by').eq('id', id).single();
+        const currentDismissedBy = Array.isArray(row?.dismissed_by) ? row.dismissed_by : [];
+        if (!currentDismissedBy.includes(userEmail)) {
+          await supabase.from('notifications').update({
+            dismissed_by: [...currentDismissedBy, userEmail]
+          }).eq('id', id);
+        }
+      } catch (e) {
+        console.error('Supabase delete notification error:', e);
+      }
+    }
+
+    const dismissedKey = `hitech_v2_dismissed_${userEmail}`;
+    const dismissed = this.getLocal(dismissedKey, []);
+    if (!dismissed.includes(id)) {
+      dismissed.push(id);
+      this.saveLocal(dismissedKey, dismissed);
+    }
+    return true;
+  }
+
+  async clearAllNotifications(userContext = null) {
+    const userEmail = userContext?.email || (() => {
+      try {
+        const u = JSON.parse(localStorage.getItem('hitech_v2_user') || '{}');
+        return u.email || 'user@hitech.com';
+      } catch (e) {
+        return 'user@hitech.com';
+      }
+    })();
+
+    const notifs = await this.getNotifications(userContext);
+    const ids = notifs.map(n => n.id);
+
+    if (isSupabaseConfigured() && ids.length > 0) {
+      try {
+        for (const id of ids) {
+          const { data: row } = await supabase.from('notifications').select('dismissed_by, read_by').eq('id', id).single();
+          const currentDismissed = Array.isArray(row?.dismissed_by) ? row.dismissed_by : [];
+          const currentRead = Array.isArray(row?.read_by) ? row.read_by : [];
+          await supabase.from('notifications').update({
+            dismissed_by: Array.from(new Set([...currentDismissed, userEmail])),
+            read_by: Array.from(new Set([...currentRead, userEmail]))
+          }).eq('id', id);
+        }
+      } catch (e) {
+        console.error('Supabase clear notifications error:', e);
+      }
+    }
+
+    const dismissedKey = `hitech_v2_dismissed_${userEmail}`;
+    const dismissed = this.getLocal(dismissedKey, []);
     const merged = Array.from(new Set([...dismissed, ...ids]));
-    this.saveLocal('hitech_v2_dismissed_notifications', merged);
+    this.saveLocal(dismissedKey, merged);
     return true;
   }
 

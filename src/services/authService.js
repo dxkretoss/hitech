@@ -8,10 +8,10 @@ import { sanitizeEmail, sanitizePassword, sanitizeText } from '../utils/sanitize
  * user sign-in, admin authentication, cookie tokens, and super admin access checks.
  */
 
-// Helper to check if a user has Super Admin privileges
+// Helper to check if a user has Admin privileges
 export const isSuperAdminUser = (user) => {
   if (!user) return false;
-  return user.role === 'Owner' || user.role === 'SuperAdmin' || user.role === 'Admin';
+  return user.role === 'Admin' || user.role === 'Owner' || user.role === 'SuperAdmin';
 };
 
 // Custom function: Register a new user with specified role and branch
@@ -203,8 +203,8 @@ export const loginAdmin = async ({ email, password }) => {
           const user = {
             id: 'U-SUPERADMIN',
             email: cleanEmail,
-            name: 'Hi-Tech Super Administrator',
-            role: 'Owner',
+            name: 'Hi-Tech Administrator',
+            role: 'Admin',
             avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
           };
           return { success: true, user, error: null };
@@ -213,7 +213,7 @@ export const loginAdmin = async ({ email, password }) => {
       }
 
       const metadata = data.user.user_metadata || {};
-      let userRole = metadata.role || 'Owner';
+      let userRole = metadata.role || 'Admin';
 
       try {
         const { data: profileRow } = await supabase
@@ -226,10 +226,10 @@ export const loginAdmin = async ({ email, password }) => {
         }
       } catch (e) {}
 
-      if (userRole !== 'Owner' && userRole !== 'SuperAdmin' && userRole !== 'Admin') {
+      if (userRole !== 'Admin' && userRole !== 'Owner' && userRole !== 'SuperAdmin') {
         await supabase.auth.signOut();
         removeAuthCookie();
-        return { success: false, user: null, error: 'Access Denied: Super Admin privileges required' };
+        return { success: false, user: null, error: 'Access Denied: Admin privileges required' };
       }
 
       if (data.session?.access_token) {
@@ -239,8 +239,8 @@ export const loginAdmin = async ({ email, password }) => {
       const user = {
         id: data.user.id,
         email: data.user.email,
-        name: metadata.name || metadata.full_name || 'Super Admin',
-        role: 'Owner',
+        name: metadata.name || metadata.full_name || 'Administrator',
+        role: 'Admin',
         avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
       };
 
@@ -252,8 +252,8 @@ export const loginAdmin = async ({ email, password }) => {
         const user = {
           id: 'U-SUPERADMIN',
           email: cleanEmail,
-          name: 'Hi-Tech Super Administrator',
-          role: 'Owner',
+          name: 'Hi-Tech Administrator',
+          role: 'Admin',
           avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
         };
         return { success: true, user, error: null };
@@ -266,8 +266,8 @@ export const loginAdmin = async ({ email, password }) => {
     const user = {
       id: 'U-SUPERADMIN',
       email: cleanEmail || 'admin@hitechair.in',
-      name: 'Super Administrator',
-      role: 'Owner',
+      name: 'Administrator',
+      role: 'Admin',
       avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
     };
     return { success: true, user, error: null };

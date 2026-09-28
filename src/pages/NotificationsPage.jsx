@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext.jsx';
 import { db } from '../services/db.js';
 import { Card } from '../components/ui/Card.jsx';
 import { Button } from '../components/ui/Button.jsx';
@@ -15,47 +16,66 @@ import {
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
-  Calendar,
-  Layers
+  Check,
+  CheckCheck
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const NotificationsPage = () => {
+  const { currentUser, role } = useAuth();
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [clearConfirmOpen, setClearConfirmOpen] = useState(false);
-  const [filterType, setFilterType] = useState('ALL'); // 'ALL' | 'URGENT' | 'WEEK' | 'FOLLOWUP'
+  const [filterType, setFilterType] = useState('ALL'); // 'ALL' | 'UNREAD' | 'URGENT' | 'WEEK' | 'FOLLOWUP'
+
+  const isOwner = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
+  const isEngineer = role === 'Engineer';
+  const isSales = role === 'Sales';
 
   const loadNotifications = async () => {
     setLoading(true);
-    const data = await db.getNotifications();
+    const data = await db.getNotifications(currentUser);
     setNotifications(data || []);
     setLoading(false);
   };
 
   useEffect(() => {
     loadNotifications();
-  }, []);
+  }, [currentUser, role]);
+
+  const handleMarkAsRead = async (id) => {
+    await db.markNotificationAsRead(id, currentUser);
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+    toast.success('Marked as read');
+  };
+
+  const handleMarkAllAsRead = async () => {
+    await db.markAllNotificationsAsRead(currentUser);
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    toast.success('All notifications marked as read');
+  };
 
   const handleDeleteSingle = async (id) => {
-    await db.deleteNotification(id);
+    await db.deleteNotification(id, currentUser);
     setNotifications(prev => prev.filter(n => n.id !== id));
-    toast.success('Notification cleared');
+    toast.success('Notification deleted');
   };
 
   const handleConfirmClearAll = async () => {
-    await db.clearAllNotifications();
+    await db.clearAllNotifications(currentUser);
     setNotifications([]);
     setClearConfirmOpen(false);
     toast.success('All notifications cleared!');
   };
 
-  const urgentCount = notifications.filter(n => n.severity === 'urgent').length;
-  const weekCount = notifications.filter(n => n.severity === 'warning').length;
-  const followupCount = notifications.filter(n => n.type === 'followup').length;
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+  const urgentCount = notifications.filter(n => n.severity === 'urgent' && !n.isRead).length;
+  const weekCount = notifications.filter(n => n.severity === 'warning' && !n.isRead).length;
+  const followupCount = notifications.filter(n => n.type === 'followup' && !n.isRead).length;
 
   const filteredNotifs = notifications.filter(n => {
+    if (filterType === 'UNREAD') return !n.isRead;
     if (filterType === 'URGENT') return n.severity === 'urgent';
     if (filterType === 'WEEK') return n.severity === 'warning';
     if (filterType === 'FOLLOWUP') return n.type === 'followup';
@@ -112,25 +132,44 @@ export const NotificationsPage = () => {
             Notifications & Due Date Alert Center
           </h1>
           <p className="text-xs text-indigo-100 mt-1 max-w-2xl">
-            Real-time automated alerts: <strong>Red Alert</strong> for services due within 3 days or today, <strong>Orange Alert</strong> for services due within 1 week, and pending sales follow-ups.
+            {isEngineer
+              ? 'Real-time database-managed service maintenance alerts: Red Alert for equipment services due within 3 days or today, and Orange Alert for services due within 1 week.'
+              : isSales
+              ? 'Real-time database-managed sales follow-up alerts and pending client meeting reminders for your active leads.'
+              : 'Real-time database-managed alerts: Red Alert for services due within 3 days or today, Orange Alert for services due within 1 week, and pending sales follow-ups.'}
           </p>
         </div>
 
         {notifications.length > 0 && (
-          <Button
-            type="button"
-            variant="outline"
-            icon={Trash2}
-            onClick={() => setClearConfirmOpen(true)}
-            className="text-white border-white/30 hover:bg-white/10 hover:border-white transition-all font-bold text-xs"
-          >
-            Clear All Alerts
-          </Button>
+          <div className="flex items-center gap-2">
+            {unreadCount > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                icon={CheckCheck}
+                onClick={handleMarkAllAsRead}
+                className="text-white border-white/30 hover:bg-white/10 hover:border-white transition-all font-bold text-xs"
+              >
+                Mark All Read
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              icon={Trash2}
+              onClick={() => setClearConfirmOpen(true)}
+              className="text-white border-white/30 hover:bg-white/10 hover:border-white transition-all font-bold text-xs"
+            >
+              Clear All
+            </Button>
+          </div>
         )}
       </div>
 
       {/* Quick Alert Filter Pills */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className={`grid gap-3 ${
+        isEngineer ? 'grid-cols-2 sm:grid-cols-4' : isSales ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-5'
+      }`}>
         <button
           type="button"
           onClick={() => setFilterType('ALL')}
@@ -146,48 +185,76 @@ export const NotificationsPage = () => {
 
         <button
           type="button"
-          onClick={() => setFilterType('URGENT')}
+          onClick={() => setFilterType('UNREAD')}
           className={`p-3.5 rounded-2xl border transition-all text-left cursor-pointer ${
-            filterType === 'URGENT'
-              ? 'bg-red-700 text-white border-red-700 shadow-md'
-              : 'bg-red-50 text-red-900 border-red-200 hover:bg-red-100/70'
+            filterType === 'UNREAD'
+              ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+              : 'bg-blue-50 text-blue-900 border-blue-200 hover:bg-blue-100/70'
           }`}
         >
           <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wide">🚨 Urgent (≤3 Days)</span>
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
+            <span className="text-[11px] font-bold uppercase tracking-wide">Unread</span>
+            {unreadCount > 0 && <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />}
           </div>
-          <span className="text-2xl font-black block mt-0.5">{urgentCount}</span>
+          <span className="text-2xl font-black block mt-0.5">{unreadCount}</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => setFilterType('WEEK')}
-          className={`p-3.5 rounded-2xl border transition-all text-left cursor-pointer ${
-            filterType === 'WEEK'
-              ? 'bg-amber-600 text-white border-amber-600 shadow-md'
-              : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100/70'
-          }`}
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wide">🟠 Due in 1 Week</span>
-            <Clock className="w-3.5 h-3.5" />
-          </div>
-          <span className="text-2xl font-black block mt-0.5">{weekCount}</span>
-        </button>
+        {!isSales && (
+          <>
+            <button
+              type="button"
+              onClick={() => setFilterType('URGENT')}
+              className={`p-3.5 rounded-2xl border transition-all text-left cursor-pointer ${
+                filterType === 'URGENT'
+                  ? 'bg-red-700 text-white border-red-700 shadow-md'
+                  : 'bg-red-50 text-red-900 border-red-200 hover:bg-red-100/70'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  Urgent (≤3 Days)
+                </span>
+                {urgentCount > 0 && <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />}
+              </div>
+              <span className="text-2xl font-black block mt-0.5">{urgentCount}</span>
+            </button>
 
-        <button
-          type="button"
-          onClick={() => setFilterType('FOLLOWUP')}
-          className={`p-3.5 rounded-2xl border transition-all text-left cursor-pointer ${
-            filterType === 'FOLLOWUP'
-              ? 'bg-indigo-700 text-white border-indigo-700 shadow-md'
-              : 'bg-indigo-50 text-indigo-900 border-indigo-200 hover:bg-indigo-100/70'
-          }`}
-        >
-          <span className="text-[11px] font-bold block uppercase tracking-wide opacity-80">Lead Follow-ups</span>
-          <span className="text-2xl font-black block mt-0.5">{followupCount}</span>
-        </button>
+            <button
+              type="button"
+              onClick={() => setFilterType('WEEK')}
+              className={`p-3.5 rounded-2xl border transition-all text-left cursor-pointer ${
+                filterType === 'WEEK'
+                  ? 'bg-amber-600 text-white border-amber-600 shadow-md'
+                  : 'bg-amber-50 text-amber-900 border-amber-200 hover:bg-amber-100/70'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold uppercase tracking-wide flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5" />
+                  Due in 1 Week
+                </span>
+                {weekCount > 0 && <span className="w-2 h-2 rounded-full bg-amber-500" />}
+              </div>
+              <span className="text-2xl font-black block mt-0.5">{weekCount}</span>
+            </button>
+          </>
+        )}
+
+        {!isEngineer && (
+          <button
+            type="button"
+            onClick={() => setFilterType('FOLLOWUP')}
+            className={`p-3.5 rounded-2xl border transition-all text-left cursor-pointer ${
+              filterType === 'FOLLOWUP'
+                ? 'bg-indigo-700 text-white border-indigo-700 shadow-md'
+                : 'bg-indigo-50 text-indigo-900 border-indigo-200 hover:bg-indigo-100/70'
+            }`}
+          >
+            <span className="text-[11px] font-bold block uppercase tracking-wide opacity-80">Lead Follow-ups</span>
+            <span className="text-2xl font-black block mt-0.5">{followupCount}</span>
+          </button>
+        )}
       </div>
 
       <Card className="divide-y divide-gray-100 p-0 overflow-hidden">
@@ -200,27 +267,30 @@ export const NotificationsPage = () => {
             </div>
             <div className="space-y-1">
               <p className="text-sm font-bold text-gray-800">All Caught Up!</p>
-              <p className="text-xs text-gray-400">No active notifications or pending due date alerts found.</p>
+              <p className="text-xs text-gray-400">No notifications found under this filter.</p>
             </div>
           </div>
         ) : (
           filteredNotifs.map((notif) => {
             const isUrgent = notif.severity === 'urgent';
             const isWarning = notif.severity === 'warning';
+            const isRead = notif.isRead === true;
 
             return (
               <div
                 key={notif.id}
                 className={`p-4 flex items-start gap-4 transition-colors group ${
-                  isUrgent
-                    ? 'border-l-4 border-l-red-500 bg-red-50/30 hover:bg-red-50/60'
+                  isRead
+                    ? 'opacity-60 bg-gray-50/50 hover:opacity-100 hover:bg-gray-50'
+                    : isUrgent
+                    ? 'bg-red-50/40 hover:bg-red-50/70 border-l-4 border-l-red-600'
                     : isWarning
-                      ? 'border-l-4 border-l-amber-500 bg-amber-50/30 hover:bg-amber-50/60'
-                      : 'hover:bg-gray-50/80'
+                    ? 'bg-amber-50/30 hover:bg-amber-50/60 border-l-4 border-l-amber-500'
+                    : 'bg-white hover:bg-gray-50/80 border-l-4 border-l-blue-500'
                 }`}
               >
                 <div
-                  className={`p-2.5 rounded-2xl shrink-0 ${
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
                     isUrgent ? 'bg-red-100' : isWarning ? 'bg-amber-100' : 'bg-gray-100'
                   }`}
                 >
@@ -228,14 +298,37 @@ export const NotificationsPage = () => {
                 </div>
                 <div className="flex-1 space-y-1.5">
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <h4 className="text-sm font-bold text-gray-900">{notif.title}</h4>
                     <div className="flex items-center gap-2">
+                      <h4 className={`text-sm font-bold ${isRead ? 'text-gray-600' : 'text-gray-900'}`}>
+                        {notif.title}
+                      </h4>
+                      {!isRead && (
+                        <span className="w-2 h-2 rounded-full bg-blue-600" title="Unread" />
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {isRead && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-500 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          Read
+                        </span>
+                      )}
                       {getTypeBadge(notif)}
+                      {!isRead && (
+                        <button
+                          type="button"
+                          onClick={() => handleMarkAsRead(notif.id)}
+                          className="p-1 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors cursor-pointer"
+                          title="Mark as Read"
+                        >
+                          <Check className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={() => handleDeleteSingle(notif.id)}
                         className="p-1 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
-                        title="Dismiss Notification"
+                        title="Delete Notification"
                       >
                         <X className="w-4 h-4" />
                       </button>
@@ -248,7 +341,7 @@ export const NotificationsPage = () => {
                     {notif.serviceId && (
                       <button
                         type="button"
-                        onClick={() => navigate('/services?tab=schedules')}
+                        onClick={() => navigate(isOwner ? '/admin/services?tab=schedules' : '/services?tab=schedules')}
                         className={`text-xs font-bold flex items-center gap-1 hover:underline cursor-pointer ${
                           isUrgent ? 'text-red-700' : isWarning ? 'text-amber-800' : 'text-[#3B318A]'
                         }`}
@@ -260,7 +353,7 @@ export const NotificationsPage = () => {
                     {notif.leadId && (
                       <button
                         type="button"
-                        onClick={() => navigate('/leads')}
+                        onClick={() => navigate(isOwner ? '/admin/leads' : '/leads')}
                         className="text-xs font-bold text-indigo-700 flex items-center gap-1 hover:underline cursor-pointer"
                       >
                         <span>View Lead Details</span>
@@ -281,7 +374,7 @@ export const NotificationsPage = () => {
         onClose={() => setClearConfirmOpen(false)}
         onConfirm={handleConfirmClearAll}
         title="Clear All Notifications?"
-        description="Are you sure you want to clear all active alerts and notifications from your alert center?"
+        description="Are you sure you want to clear all notifications from your alert center?"
         confirmText="Yes, Clear All"
         cancelText="Cancel"
         variant="danger"
@@ -289,4 +382,3 @@ export const NotificationsPage = () => {
     </div>
   );
 };
-

@@ -43,7 +43,7 @@ export const CustomersPage = () => {
   const loadCustomers = async () => {
     setLoading(true);
     const [data, profiles, allStock] = await Promise.all([
-      db.getCustomers(),
+      db.getCustomers(currentUser),
       db.getProfiles(),
       db.getStockItems()
     ]);
@@ -57,7 +57,7 @@ export const CustomersPage = () => {
 
   useEffect(() => {
     loadCustomers();
-  }, []);
+  }, [currentUser, role]);
 
   const handleOpenDirectSale = () => {
     setSaleFormData({
@@ -117,18 +117,25 @@ export const CustomersPage = () => {
   const userBranch = currentUser?.branch || 'Surat';
   const isAdmin = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
 
-  const filteredCustomers = customers.filter(c => {
-    if (!isAdmin && c.branch && c.branch !== userBranch) return false;
+  const filteredCustomers = customers
+    .filter(c => {
+      if (!isAdmin && c.branch && c.branch !== userBranch) return false;
 
-    return (
-      (c.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.phone || '').includes(searchTerm) ||
-      (c.branch || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.purchasedProduct || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (c.salesPersonName || '').toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  });
+      return (
+        (c.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.phone || '').includes(searchTerm) ||
+        (c.branch || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.purchasedProduct || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (c.salesPersonName || '').toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    })
+    .sort((a, b) => {
+      const timeA = a.installationDate ? new Date(a.installationDate).getTime() : 0;
+      const timeB = b.installationDate ? new Date(b.installationDate).getTime() : 0;
+      if (timeA && timeB && timeA !== timeB) return timeB - timeA;
+      return (b.id || '').localeCompare(a.id || '');
+    });
 
   const columns = [
     {

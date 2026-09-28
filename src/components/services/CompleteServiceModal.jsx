@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Calendar,
   Plus,
+  Check,
   Clock,
   User,
   ShieldCheck,
@@ -201,13 +202,13 @@ export const CompleteServiceModal = ({
                   key={task}
                   type="button"
                   onClick={() => handleToggleTaskChip(task)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border ${
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all border cursor-pointer ${
                     isSelected
-                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-xs'
+                      ? 'bg-emerald-50 border-emerald-300 text-emerald-800 shadow-2xs'
                       : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
                   }`}
                 >
-                  {isSelected ? '✓ ' : '+ '}
+                  {isSelected ? <Check className="w-3 h-3 text-emerald-700" /> : <Plus className="w-3 h-3 text-gray-500" />}
                   {task}
                 </button>
               );

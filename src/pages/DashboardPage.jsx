@@ -23,7 +23,8 @@ import {
   Calendar,
   Building2,
   ShieldCheck,
-  ArrowRight
+  ArrowRight,
+  Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -38,14 +39,15 @@ export const DashboardPage = () => {
   const [loading, setLoading] = useState(true);
 
   const isOwner = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
+  const hasStockAccess = isOwner || currentUser?.canViewStock === true;
 
   const loadData = async () => {
     setLoading(true);
     const [lData, cData, foData, sData] = await Promise.all([
-      db.getLeads(),
-      db.getCustomers(),
-      db.getFutureOpportunities(),
-      db.getServices()
+      db.getLeads(currentUser),
+      db.getCustomers(currentUser),
+      db.getFutureOpportunities(currentUser),
+      db.getServices(currentUser)
     ]);
     setLeads(lData || []);
     setCustomers(cData || []);
@@ -60,7 +62,7 @@ export const DashboardPage = () => {
       return;
     }
     loadData();
-  }, [role]);
+  }, [currentUser, role]);
 
   const todayStr = new Date().toISOString().split('T')[0];
 
@@ -101,8 +103,8 @@ export const DashboardPage = () => {
     );
   });
 
-  const upcomingServices = engineerServiceList.filter(s => s.status === 'Upcoming');
-  const todaysSiteVisits = engineerServiceList.filter(s => s.scheduledDate === todayStr || s.status === 'Pending' || s.status === 'In Progress');
+  const upcomingServices = engineerServiceList.filter(s => s.status === 'Upcoming' && s.scheduledDate > todayStr);
+  const todaysSiteVisits = engineerServiceList.filter(s => s.status !== 'Completed' && (s.scheduledDate <= todayStr || s.status === 'Pending' || s.status === 'In Progress'));
   const completedServices = engineerServiceList.filter(s => s.status === 'Completed');
 
   const handleMarkComplete = async (serviceId) => {
@@ -234,12 +236,12 @@ export const DashboardPage = () => {
                       <div className="flex items-center gap-2 self-end sm:self-center">
                         <Button
                           size="sm"
-                          variant="success"
-                          icon={CheckSquare}
-                          onClick={() => handleMarkComplete(s.id)}
-                          className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold"
+                          variant="outline"
+                          icon={Eye}
+                          onClick={() => navigate('/services')}
+                          className="font-bold text-xs text-[#3B318A] hover:bg-indigo-50 border-indigo-200"
                         >
-                          Mark Complete
+                          View
                         </Button>
                       </div>
                     </div>
@@ -253,7 +255,7 @@ export const DashboardPage = () => {
               <div className="flex items-center justify-between border-b pb-3 border-gray-100">
                 <h3 className="text-sm font-bold text-gray-900 flex items-center gap-2">
                   <Calendar className="w-4 h-4 text-sky-500" />
-                  Upcoming Auto-Generated Preventative Schedule (+2m, +6m, +10m)
+                  Upcoming Scheduled Maintenance
                 </h3>
                 <Badge variant="info">{upcomingServices.length} In Queue</Badge>
               </div>
@@ -503,35 +505,37 @@ export const DashboardPage = () => {
 
         {/* Right Column (1 col): Recent Converted Accounts & Sales Tips */}
         <div className="space-y-6">
-          {/* My Sold Items & Machine Deals */}
-          <Card className="p-5 space-y-3">
-            <div className="flex items-center justify-between border-b pb-2 border-gray-100">
-              <h3 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
-                <ShoppingBag className="w-3.5 h-3.5 text-emerald-600" />
-                My Sold Items & Machines
-              </h3>
-              <Badge variant="success">{mySalesItems.length} Sold</Badge>
-            </div>
+          {/* My Sold Items & Machine Deals (Only if granted access by Admin) */}
+          {hasStockAccess && (
+            <Card className="p-5 space-y-3">
+              <div className="flex items-center justify-between border-b pb-2 border-gray-100">
+                <h3 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                  <ShoppingBag className="w-3.5 h-3.5 text-emerald-600" />
+                  My Sold Items & Machines
+                </h3>
+                <Badge variant="success">{mySalesItems.length} Sold</Badge>
+              </div>
 
-            <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
-              {mySalesItems.length === 0 ? (
-                <p className="text-xs text-gray-400 py-3 text-center">No sales records registered yet.</p>
-              ) : (
-                mySalesItems.map((sale) => (
-                  <div key={sale.id} className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-xs space-y-1">
-                    <div className="flex justify-between items-center">
-                      <span className="font-bold text-gray-900">{sale.company || sale.customerName}</span>
-                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
-                        {sale.branch}
-                      </span>
+              <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+                {mySalesItems.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-3 text-center">No sales records registered yet.</p>
+                ) : (
+                  mySalesItems.map((sale) => (
+                    <div key={sale.id} className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-xs space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="font-bold text-gray-900">{sale.company || sale.customerName}</span>
+                        <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
+                          {sale.branch}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#3B318A] font-semibold">{sale.purchasedProduct}</p>
+                      <p className="text-[10px] text-gray-400">{sale.installationDate || 'Recent'} • Qty: {sale.quantity || 1}</p>
                     </div>
-                    <p className="text-[11px] text-[#3B318A] font-semibold">{sale.purchasedProduct}</p>
-                    <p className="text-[10px] text-gray-400">{sale.installationDate || 'Recent'} • Qty: {sale.quantity || 1}</p>
-                  </div>
-                ))
-              )}
-            </div>
-          </Card>
+                  ))
+                )}
+              </div>
+            </Card>
+          )}
 
           {/* Recent Won Deals */}
           <Card className="p-5 space-y-3">

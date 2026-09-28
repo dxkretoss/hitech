@@ -108,12 +108,19 @@ export const FutureOpportunitiesPage = () => {
     await loadOpps();
   };
 
-  const filteredOpps = opps.filter(o =>
-    (o.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (o.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (o.phone || '').includes(searchTerm) ||
-    (o.requirement || '').toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredOpps = opps
+    .filter(o =>
+      (o.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (o.company || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (o.phone || '').includes(searchTerm) ||
+      (o.requirement || '').toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    .sort((a, b) => {
+      const timeA = a.reminderDate ? new Date(a.reminderDate).getTime() : 0;
+      const timeB = b.reminderDate ? new Date(b.reminderDate).getTime() : 0;
+      if (timeA && timeB && timeA !== timeB) return timeB - timeA;
+      return (b.id || '').localeCompare(a.id || '');
+    });
 
   const columns = [
     {

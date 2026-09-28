@@ -122,14 +122,14 @@ export const ServicesPage = () => {
 
   const loadServices = async () => {
     setLoadingServices(true);
-    const data = await db.getServices();
+    const data = await db.getServices(currentUser);
     setServices(data || []);
     setLoadingServices(false);
   };
 
   const loadInstallations = async () => {
     setLoadingInstallations(true);
-    const data = await db.getCustomers();
+    const data = await db.getCustomers(currentUser);
     setInstallations(data || []);
     setLoadingInstallations(false);
   };
@@ -146,7 +146,7 @@ export const ServicesPage = () => {
     loadServices();
     loadInstallations();
     loadSparePartsStock();
-  }, []);
+  }, [currentUser, role]);
 
   const handleOpenCompleteModal = (service) => {
     setSelectedServiceToComplete(service);
@@ -322,46 +322,60 @@ export const ServicesPage = () => {
     }
   };
 
-  // Filtered Services
-  const filteredServices = services.filter((s) => {
-    if (activeTab === 'Urgent') {
-      if (s.status === 'Completed' || !s.scheduledDate) return false;
-      return getServiceDateUrgency(s.scheduledDate).isRed;
-    }
-    if (activeTab === 'Week') {
-      if (s.status === 'Completed' || !s.scheduledDate) return false;
-      return getServiceDateUrgency(s.scheduledDate).isOrange;
-    }
-    if (activeTab !== 'All' && s.status !== activeTab) return false;
+  // Filtered Services (Newest data always shows first)
+  const filteredServices = services
+    .filter((s) => {
+      if (activeTab === 'Urgent') {
+        if (s.status === 'Completed' || !s.scheduledDate) return false;
+        return getServiceDateUrgency(s.scheduledDate).isRed;
+      }
+      if (activeTab === 'Week') {
+        if (s.status === 'Completed' || !s.scheduledDate) return false;
+        return getServiceDateUrgency(s.scheduledDate).isOrange;
+      }
+      if (activeTab !== 'All' && s.status !== activeTab) return false;
 
-    if (serviceSearchTerm) {
-      const q = serviceSearchTerm.toLowerCase();
-      return (
-        (s.customerName || '').toLowerCase().includes(q) ||
-        (s.company || '').toLowerCase().includes(q) ||
-        (s.branch || '').toLowerCase().includes(q) ||
-        (s.product || '').toLowerCase().includes(q) ||
-        (s.serviceName || '').toLowerCase().includes(q) ||
-        (s.assignedEngineer || '').toLowerCase().includes(q) ||
-        (s.workDone || '').toLowerCase().includes(q) ||
-        (s.partsReplaced || '').toLowerCase().includes(q)
-      );
-    }
-    return true;
-  });
+      if (serviceSearchTerm) {
+        const q = serviceSearchTerm.toLowerCase();
+        return (
+          (s.customerName || '').toLowerCase().includes(q) ||
+          (s.company || '').toLowerCase().includes(q) ||
+          (s.branch || '').toLowerCase().includes(q) ||
+          (s.product || '').toLowerCase().includes(q) ||
+          (s.serviceName || '').toLowerCase().includes(q) ||
+          (s.assignedEngineer || '').toLowerCase().includes(q) ||
+          (s.workDone || '').toLowerCase().includes(q) ||
+          (s.partsReplaced || '').toLowerCase().includes(q)
+        );
+      }
+      return true;
+    })
+    .sort((a, b) => {
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      if (timeA && timeB && timeA !== timeB) return timeB - timeA;
+      return (b.id || '').localeCompare(a.id || '');
+    });
 
   // Base machine installations (show ONLY data added/recorded by this user; for Admin: show all)
-  const userInstallations = installations.filter((inst) => {
-    if (isAdmin) return true;
-    if (!currentUser) return false;
-    const name = (currentUser.name || '').toLowerCase();
-    const salesName = (inst.salesPersonName || '').toLowerCase();
-    const salesId = inst.salesPersonId || '';
-    return (
-      salesId === currentUser.id ||
-      (salesName && (salesName.includes(name) || name.includes(salesName)))
-    );
-  });
+  const userInstallations = installations
+    .filter((inst) => {
+      if (isAdmin) return true;
+      if (!currentUser) return false;
+      const name = (currentUser.name || '').toLowerCase();
+      const salesName = (inst.salesPersonName || '').toLowerCase();
+      const salesId = inst.salesPersonId || '';
+      return (
+        salesId === currentUser.id ||
+        (salesName && (salesName.includes(name) || name.includes(salesName)))
+      );
+    })
+    .sort((a, b) => {
+      const timeA = a.installationDate ? new Date(a.installationDate).getTime() : 0;
+      const timeB = b.installationDate ? new Date(b.installationDate).getTime() : 0;
+      if (timeA && timeB && timeA !== timeB) return timeB - timeA;
+      return (b.id || '').localeCompare(a.id || '');
+    });
 
   // Filtered Machine Installations
   const filteredInstallations = userInstallations.filter((inst) => {
@@ -973,7 +987,10 @@ export const ServicesPage = () => {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-red-800 uppercase tracking-wide">🚨 Urgent (≤3 Days)</span>
+                <span className="text-[11px] font-bold text-red-800 uppercase tracking-wide flex items-center gap-1.5">
+                  <AlertTriangle className="w-3.5 h-3.5 text-red-700" />
+                  Urgent (≤3 Days)
+                </span>
                 <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
               </div>
               <span className="text-2xl font-black text-red-700 block mt-1">{countUrgentRed}</span>
@@ -987,8 +1004,11 @@ export const ServicesPage = () => {
               }`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wide">🟠 Due in 1 Week</span>
-                <Clock className="w-4 h-4 text-amber-600" />
+                <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wide flex items-center gap-1.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-700" />
+                  Due in 1 Week
+                </span>
+                <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
               </div>
               <span className="text-2xl font-black text-amber-800 block mt-1">{countOneWeekOrange}</span>
               <span className="text-[10px] font-semibold text-amber-700">Due within 4-7 days</span>
@@ -1028,8 +1048,8 @@ export const ServicesPage = () => {
                 className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-[#3B318A] outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer shadow-2xs"
               >
                 <option value="All">All Services ({services.length})</option>
-                <option value="Urgent">🚨 Urgent Due (≤3 Days) ({countUrgentRed})</option>
-                <option value="Week">🟠 Due in 1 Week ({countOneWeekOrange})</option>
+                <option value="Urgent">Urgent Due (≤3 Days) ({countUrgentRed})</option>
+                <option value="Week">Due in 1 Week ({countOneWeekOrange})</option>
                 <option value="Upcoming">Upcoming ({countUpcoming})</option>
                 <option value="Completed">Completed Reports ({countCompleted})</option>
               </select>
