@@ -1,15 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { PenLine, List, Plus, Sparkles, X } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { PenLine, List, X, ChevronDown, Search, Check, Plus } from 'lucide-react';
 
 /**
  * CustomSelect / CreatableSelect component
- * Allows selecting from predefined options OR typing any custom value directly.
- * 
- * Supports:
- * - `options`: Array of strings or `{ value, label, group? }`
- * - `children`: Standard `<option>` and `<optgroup>` tags
+ * Uses React Portal to float outside modal overflow containers
+ * Features:
+ * - Never clipped by modal headers or overflow containers (rendered in Portal)
+ * - Automatic upward/downward positioning based on viewport space
+ * - Instant live search filter for long option lists
+ * - Optgroup / Category headers support
  * - 1-click toggling between Preset Dropdown & Custom Text Entry
- * - Auto-detection of custom values
  * - Full compatibility with standard form onChange events: `e.target.value` & `e.target.name`
  */
 export const CustomSelect = ({
@@ -19,7 +20,7 @@ export const CustomSelect = ({
   onChange,
   options,
   children,
-  placeholder = '',
+  placeholder = 'Select option...',
   customPlaceholder,
   allowCustom = true,
   customOptionLabel = '+ Enter Custom / Other...',
@@ -29,13 +30,14 @@ export const CustomSelect = ({
   inputClassName = '',
   disabled = false,
   helperText,
+  maxDropdownHeight = 300,
   ...rest
 }) => {
   // Extract all preset values from options or children
-  const presetOptions = React.useMemo(() => {
+  const presetOptions = useMemo(() => {
     const list = [];
     if (Array.isArray(options)) {
-      options.forEach(opt => {
+      options.forEach((opt) => {
         if (typeof opt === 'string' || typeof opt === 'number') {
           list.push({ value: String(opt), label: String(opt) });
         } else if (opt && typeof opt === 'object') {
@@ -47,7 +49,7 @@ export const CustomSelect = ({
         }
       });
     } else if (children) {
-      React.Children.forEach(children, child => {
+      React.Children.forEach(children, (child) => {
         if (!child) return;
         if (child.type === 'option') {
           list.push({
@@ -55,7 +57,7 @@ export const CustomSelect = ({
             label: String(child.props.children ?? child.props.value ?? '')
           });
         } else if (child.type === 'optgroup' && child.props.children) {
-          React.Children.forEach(child.props.children, subChild => {
+          React.Children.forEach(child.props.children, (subChild) => {
             if (subChild && subChild.type === 'option') {
               list.push({
                 value: String(subChild.props.value ?? subChild.props.children ?? ''),
@@ -70,15 +72,28 @@ export const CustomSelect = ({
     return list;
   }, [options, children]);
 
-  const presetValueSet = React.useMemo(() => {
-    return new Set(presetOptions.map(o => String(o.value)));
+  const presetValueSet = useMemo(() => {
+    return new Set(presetOptions.map((o) => String(o.value)));
   }, [presetOptions]);
 
   // Determine if current value is custom (not in preset options and not empty)
   const isValueCustom = Boolean(value && !presetValueSet.has(String(value)));
 
+  const [isOpen, setIsOpen] = useState(false);
   const [isCustomMode, setIsCustomMode] = useState(isValueCustom);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [dropdownCoords, setDropdownCoords] = useState({
+    top: 0,
+    left: 0,
+    width: 0,
+    openUpward: false,
+    maxHeight: 280
+  });
+
+  const triggerRef = useRef(null);
+  const popoverRef = useRef(null);
   const inputRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   // Sync mode if value changes externally
   useEffect(() => {
@@ -87,9 +102,70 @@ export const CustomSelect = ({
     }
   }, [value, presetValueSet]);
 
+  // Calculate coordinates for the Portal dropdown
+  const updatePosition = () => {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - 12;
+    const spaceAbove = rect.top - 12;
+
+    const shouldOpenUpward = spaceBelow < 240 && spaceAbove > spaceBelow;
+    const computedMaxHeight = Math.min(
+      typeof maxDropdownHeight === 'number' ? maxDropdownHeight : 300,
+      shouldOpenUpward ? Math.max(160, spaceAbove - 20) : Math.max(160, spaceBelow - 20)
+    );
+
+    setDropdownCoords({
+      top: shouldOpenUpward ? rect.top - 6 : rect.bottom + 6,
+      left: rect.left,
+      width: rect.width,
+      openUpward: shouldOpenUpward,
+      maxHeight: computedMaxHeight
+    });
+  };
+
+  useEffect(() => {
+    if (isOpen) {
+      updatePosition();
+      window.addEventListener('resize', updatePosition);
+      window.addEventListener('scroll', updatePosition, true);
+    }
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [isOpen]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      const isClickInsideTrigger = triggerRef.current && triggerRef.current.contains(e.target);
+      const isClickInsidePopover = popoverRef.current && popoverRef.current.contains(e.target);
+
+      if (!isClickInsideTrigger && !isClickInsidePopover) {
+        setIsOpen(false);
+      }
+    };
+
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen]);
+
+  // Focus search input on open
+  useEffect(() => {
+    if (isOpen) {
+      setTimeout(() => searchInputRef.current?.focus(), 40);
+    } else {
+      setSearchQuery('');
+    }
+  }, [isOpen]);
+
   const triggerChange = (newVal) => {
     if (onChange) {
-      // Standard synthetic event signature for maximum React form compatibility
       const syntheticEvent = {
         target: {
           name: name || '',
@@ -100,13 +176,14 @@ export const CustomSelect = ({
     }
   };
 
-  const handleSelectChange = (e) => {
-    const selectedVal = e.target.value;
-    if (selectedVal === '__CUSTOM_OPTION_TRIGGER__') {
+  const handleSelectOption = (optValue) => {
+    if (optValue === '__CUSTOM_OPTION_TRIGGER__') {
       setIsCustomMode(true);
+      setIsOpen(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     } else {
-      triggerChange(selectedVal);
+      triggerChange(optValue);
+      setIsOpen(false);
     }
   };
 
@@ -116,7 +193,6 @@ export const CustomSelect = ({
 
   const switchToPresets = () => {
     setIsCustomMode(false);
-    // If the current custom value is not in presets, pick first preset or blank
     if (value && !presetValueSet.has(String(value))) {
       const fallback = presetOptions.length > 0 ? presetOptions[0].value : '';
       triggerChange(fallback);
@@ -125,14 +201,26 @@ export const CustomSelect = ({
 
   const switchToCustom = () => {
     setIsCustomMode(true);
+    setIsOpen(false);
     setTimeout(() => inputRef.current?.focus(), 50);
   };
 
-  // Grouped options if any
-  const groups = React.useMemo(() => {
+  // Filter options by search query
+  const filteredOptions = useMemo(() => {
+    if (!searchQuery.trim()) return presetOptions;
+    const q = searchQuery.toLowerCase();
+    return presetOptions.filter((opt) =>
+      opt.label.toLowerCase().includes(q) ||
+      opt.value.toLowerCase().includes(q) ||
+      (opt.group && opt.group.toLowerCase().includes(q))
+    );
+  }, [presetOptions, searchQuery]);
+
+  // Grouped options
+  const groups = useMemo(() => {
     const grouped = {};
     const ungrouped = [];
-    presetOptions.forEach(opt => {
+    filteredOptions.forEach((opt) => {
       if (opt.group) {
         if (!grouped[opt.group]) grouped[opt.group] = [];
         grouped[opt.group].push(opt);
@@ -141,10 +229,17 @@ export const CustomSelect = ({
       }
     });
     return { grouped, ungrouped };
-  }, [presetOptions]);
+  }, [filteredOptions]);
+
+  // Selected Option Display Label
+  const selectedLabel = useMemo(() => {
+    if (!value) return '';
+    const matched = presetOptions.find((o) => o.value === String(value));
+    return matched ? matched.label : value;
+  }, [value, presetOptions]);
 
   return (
-    <div className={`space-y-1.5 w-full ${className}`}>
+    <div className={`space-y-1.5 w-full relative ${className}`}>
       {/* Label and Mode Switcher Header */}
       <div className="flex items-center justify-between gap-2">
         {label && (
@@ -158,7 +253,7 @@ export const CustomSelect = ({
           <button
             type="button"
             onClick={isCustomMode ? switchToPresets : switchToCustom}
-            className={`text-[11px] font-semibold flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors ${
+            className={`text-[11px] font-semibold flex items-center gap-1 px-2 py-0.5 rounded-md transition-colors cursor-pointer ${
               isCustomMode
                 ? 'text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200'
                 : 'text-gray-500 hover:text-[#3B318A] hover:bg-gray-100'
@@ -180,7 +275,7 @@ export const CustomSelect = ({
         )}
       </div>
 
-      {/* Main Control: Either Custom Text Input or Select Dropdown */}
+      {/* Main Control: Custom Text Input or Interactive Trigger Button */}
       {isCustomMode ? (
         <div className="relative flex items-center">
           <input
@@ -198,7 +293,7 @@ export const CustomSelect = ({
           <button
             type="button"
             onClick={switchToPresets}
-            className="absolute right-2 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-md transition-colors"
+            className="absolute right-2 p-1 text-gray-400 hover:text-gray-700 hover:bg-gray-200 rounded-md transition-colors cursor-pointer"
             title="Return to standard dropdown list"
           >
             <X className="w-4 h-4" />
@@ -206,69 +301,172 @@ export const CustomSelect = ({
         </div>
       ) : (
         <div className="relative">
-          <select
+          {/* Custom Trigger Button */}
+          <button
+            ref={triggerRef}
+            type="button"
+            disabled={disabled}
+            onClick={() => {
+              if (!disabled) {
+                updatePosition();
+                setIsOpen(!isOpen);
+              }
+            }}
+            className={`w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] focus:border-[#3B318A] bg-white text-gray-900 transition-all font-medium flex items-center justify-between text-left cursor-pointer pr-3 ${
+              isOpen ? 'border-[#3B318A] ring-2 ring-[#3B318A]/20' : ''
+            } ${disabled ? 'opacity-60 cursor-not-allowed bg-gray-50' : ''} ${selectClassName}`}
+          >
+            <span className={`truncate mr-2 ${!value ? 'text-gray-400 font-normal' : 'text-gray-900 font-medium'}`}>
+              {selectedLabel || placeholder}
+            </span>
+            <ChevronDown
+              className={`w-4 h-4 text-gray-500 shrink-0 transition-transform duration-200 ${
+                isOpen ? 'rotate-180 text-[#3B318A]' : ''
+              }`}
+            />
+          </button>
+
+          {/* Hidden native input for HTML form validations */}
+          <input
+            type="text"
             name={name}
             value={value}
-            onChange={handleSelectChange}
             required={required}
-            disabled={disabled}
-            className={`w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] focus:border-[#3B318A] bg-white text-gray-900 transition-all font-medium appearance-none cursor-pointer pr-9 ${selectClassName}`}
-            {...rest}
-          >
-            {placeholder && !presetOptions.some(o => o.value === '') && (
-              <option value="" disabled className="text-gray-400">
-                {placeholder}
-              </option>
-            )}
-
-            {/* Ungrouped Options */}
-            {groups.ungrouped.map(opt => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-
-            {/* Grouped Options */}
-            {Object.entries(groups.grouped).map(([groupName, items]) => (
-              <optgroup key={groupName} label={groupName}>
-                {items.map(opt => (
-                  <option key={opt.value} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-
-            {/* If there's an existing custom value selected */}
-            {isValueCustom && (
-              <option value={value} className="font-semibold text-indigo-700 bg-indigo-50">
-                {value}
-              </option>
-            )}
-
-            {/* Custom Input Trigger Option */}
-            {allowCustom && (
-              <option
-                value="__CUSTOM_OPTION_TRIGGER__"
-                className="font-bold text-[#3B318A] bg-indigo-50/80 py-1"
-              >
-                {customOptionLabel}
-              </option>
-            )}
-          </select>
-
-          {/* Clean dropdown chevron arrow indicator */}
-          <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none text-gray-500">
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-            </svg>
-          </div>
+            readOnly
+            className="sr-only"
+            tabIndex={-1}
+          />
         </div>
       )}
 
-      {helperText && (
-        <p className="text-[11px] text-gray-500">{helperText}</p>
+      {/* Floating Dropdown Popover in Portal (Never clipped by modal) */}
+      {!isCustomMode && isOpen && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={popoverRef}
+          style={{
+            position: 'fixed',
+            top: dropdownCoords.openUpward ? undefined : dropdownCoords.top,
+            bottom: dropdownCoords.openUpward ? window.innerHeight - dropdownCoords.top : undefined,
+            left: dropdownCoords.left,
+            width: dropdownCoords.width,
+            zIndex: 99999
+          }}
+          className="bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in zoom-in-95 duration-100"
+        >
+          {/* Search Bar for quick searching */}
+          {presetOptions.length > 4 && (
+            <div className="p-2 border-b border-gray-100 bg-slate-50/90 shrink-0">
+              <div className="relative flex items-center">
+                <Search className="w-3.5 h-3.5 text-gray-400 absolute left-2.5" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Search options..."
+                  className="w-full pl-8 pr-3 py-1.5 text-xs bg-white border border-gray-200 rounded-lg outline-none focus:border-[#3B318A] focus:ring-1 focus:ring-[#3B318A]"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2 text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Scrollable Container with exact computed height */}
+          <div
+            style={{ maxHeight: dropdownCoords.maxHeight }}
+            className="overflow-y-auto p-1.5 space-y-1 divide-y divide-gray-50 scrollbar-thin"
+          >
+            {filteredOptions.length === 0 ? (
+              <div className="py-6 text-center text-xs text-gray-400">
+                No matching options found.
+              </div>
+            ) : (
+              <>
+                {/* Ungrouped Options */}
+                {groups.ungrouped.length > 0 && (
+                  <div className="space-y-0.5">
+                    {groups.ungrouped.map((opt) => {
+                      const isSelected = String(value) === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => handleSelectOption(opt.value)}
+                          className={`w-full text-left px-3 py-2 rounded-xl text-xs transition-all flex items-center justify-between cursor-pointer ${
+                            isSelected
+                              ? 'bg-[#3B318A] text-white font-bold shadow-xs'
+                              : 'text-gray-800 hover:bg-indigo-50/70 font-medium'
+                          }`}
+                        >
+                          <span className="truncate mr-2">{opt.label}</span>
+                          {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-white" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Grouped Options */}
+                {Object.entries(groups.grouped).map(([groupName, items]) => (
+                  <div key={groupName} className="pt-2 first:pt-0 space-y-0.5">
+                    <div className="px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#3B318A] bg-indigo-50/80 rounded-lg flex items-center justify-between">
+                      <span>{groupName}</span>
+                      <span className="text-[9px] font-bold text-indigo-600 bg-white/80 px-1.5 py-0.2 rounded-md">
+                        {items.length}
+                      </span>
+                    </div>
+                    <div className="pl-1 space-y-0.5 mt-0.5">
+                      {items.map((opt) => {
+                        const isSelected = String(value) === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => handleSelectOption(opt.value)}
+                            className={`w-full text-left px-3 py-2 rounded-xl text-xs transition-all flex items-center justify-between cursor-pointer ${
+                              isSelected
+                                ? 'bg-[#3B318A] text-white font-bold shadow-xs'
+                                : 'text-gray-800 hover:bg-indigo-50/70 font-medium'
+                            }`}
+                          >
+                            <span className="truncate mr-2">{opt.label}</span>
+                            {isSelected && <Check className="w-3.5 h-3.5 shrink-0 text-white" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+          </div>
+
+          {/* Custom Input Trigger Option at Bottom of Dropdown */}
+          {allowCustom && (
+            <div className="p-1.5 border-t border-gray-100 bg-slate-50 shrink-0">
+              <button
+                type="button"
+                onClick={() => handleSelectOption('__CUSTOM_OPTION_TRIGGER__')}
+                className="w-full text-left px-3 py-2 rounded-xl text-xs font-bold text-[#3B318A] bg-indigo-50/60 hover:bg-indigo-100 transition-colors flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 text-[#3B318A]" />
+                <span>{customOptionLabel}</span>
+              </button>
+            </div>
+          )}
+        </div>,
+        document.body
       )}
+
+      {helperText && <p className="text-[11px] text-gray-500">{helperText}</p>}
     </div>
   );
 };

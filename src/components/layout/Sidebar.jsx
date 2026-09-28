@@ -7,6 +7,7 @@ import {
   Briefcase,
   Sparkles,
   Users,
+  UserCheck,
   Wrench,
   Boxes,
   Bell,
@@ -14,31 +15,41 @@ import {
   LogOut,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ShoppingBag,
+
 } from 'lucide-react';
 import { clsx } from 'clsx';
 
 export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
-  const { role, logout } = useAuth();
+  const { role, currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
   const isOwner = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
+  const hasStockAccess = isOwner || currentUser?.canViewStock === true;
   const dashboardPath = isOwner ? '/admin/dashboard' : '/dashboard';
 
   const navItems = [
-    { label: 'Dashboard', path: dashboardPath, icon: LayoutDashboard },
-    { label: 'Leads', path: '/leads', icon: Briefcase, allowedRoles: ['Sales', 'Owner', 'SuperAdmin', 'Admin'] },
-    { label: 'Future Opportunities', path: '/future-opportunities', icon: Sparkles, ownerOnly: true },
-    { label: 'Customers', path: '/customers', icon: Users, ownerOnly: true },
-    { label: 'Services', path: '/services', icon: Wrench, allowedRoles: ['Engineer', 'Owner', 'SuperAdmin', 'Admin'] },
-    { label: 'Stock & Inventory', path: '/stock', icon: Boxes, allowedRoles: ['Owner', 'SuperAdmin', 'Admin', 'Engineer', 'Sales'] },
-    { label: 'Notifications', path: '/notifications', icon: Bell },
-    { label: 'Profile', path: '/profile', icon: User }
+    { label: 'Dashboard', path: isOwner ? '/admin/dashboard' : '/dashboard', icon: LayoutDashboard },
+    { label: 'Team Members', path: '/admin/team', icon: UserCheck, ownerOnly: true },
+    { label: 'Leads', path: isOwner ? '/admin/leads' : '/leads', icon: Briefcase, allowedRoles: ['Sales', 'Owner', 'SuperAdmin', 'Admin'] },
+    { label: 'Future Opportunities', path: isOwner ? '/admin/future-opportunities' : '/future-opportunities', icon: Sparkles, ownerOnly: true },
+    { label: 'Customers', path: isOwner ? '/admin/customers' : '/customers', icon: Users, ownerOnly: true },
+    { label: 'Services', path: isOwner ? '/admin/services' : '/services', icon: Wrench, allowedRoles: ['Engineer', 'Owner', 'SuperAdmin', 'Admin'] },
+    {
+      label: isOwner ? 'Stock & Inventory' : 'Sold Items',
+      path: isOwner ? '/admin/stock' : '/stock',
+      icon: isOwner ? Boxes : ShoppingBag,
+      allowedRoles: ['Sales', 'Owner', 'SuperAdmin', 'Admin']
+    },
+    { label: 'Notifications', path: isOwner ? '/admin/notifications' : '/notifications', icon: Bell },
+    { label: 'Profile', path: isOwner ? '/admin/profile' : '/profile', icon: User }
   ];
 
   const filteredNavItems = navItems.filter(item => {
     if (item.ownerOnly && !isOwner) return false;
+    if (item.requiresStockAccess && !hasStockAccess) return false;
     if (item.allowedRoles && !item.allowedRoles.includes(role)) return false;
     return true;
   });
@@ -99,12 +110,19 @@ export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
         >
           {filteredNavItems.map((item) => {
             const Icon = item.icon;
-            
-            // Check active match
-            const isDashboardItem = item.label === 'Dashboard';
-            const isCurrentActive = isDashboardItem
-              ? (location.pathname === '/dashboard' || location.pathname === '/admin/dashboard')
-              : location.pathname === item.path;
+
+            // Check active match (supports both /admin/* and regular paths)
+            const isCurrentActive =
+              location.pathname === item.path ||
+              (item.label === 'Dashboard' && (location.pathname === '/dashboard' || location.pathname === '/admin/dashboard')) ||
+              (item.label === 'Team Members' && (location.pathname === '/team' || location.pathname === '/admin/team')) ||
+              (item.label === 'Leads' && (location.pathname === '/leads' || location.pathname === '/admin/leads')) ||
+              (item.label === 'Future Opportunities' && (location.pathname === '/future-opportunities' || location.pathname === '/admin/future-opportunities')) ||
+              (item.label === 'Customers' && (location.pathname.startsWith('/customers') || location.pathname.startsWith('/admin/customers'))) ||
+              (item.label === 'Services' && (location.pathname === '/services' || location.pathname === '/admin/services')) ||
+              (item.label === 'Stock & Inventory' && (location.pathname === '/stock' || location.pathname === '/admin/stock')) ||
+              (item.label === 'Notifications' && (location.pathname === '/notifications' || location.pathname === '/admin/notifications')) ||
+              (item.label === 'Profile' && (location.pathname === '/profile' || location.pathname === '/admin/profile'));
 
             return (
               <NavLink

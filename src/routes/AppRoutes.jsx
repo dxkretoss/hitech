@@ -15,6 +15,8 @@ import { ServicesPage } from '../pages/ServicesPage.jsx';
 import { StockPage } from '../pages/StockPage.jsx';
 import { NotificationsPage } from '../pages/NotificationsPage.jsx';
 import { ProfilePage } from '../pages/ProfilePage.jsx';
+import { TeamPage } from '../pages/TeamPage.jsx';
+import { TeamMemberDetailPage } from '../pages/TeamMemberDetailPage.jsx';
 
 export const AppRoutes = () => {
   return (
@@ -31,6 +33,7 @@ export const AppRoutes = () => {
           </ProtectedRoute>
         }
       >
+        {/* Admin Specific Routes */}
         <Route
           path="/admin/dashboard"
           element={
@@ -39,7 +42,90 @@ export const AppRoutes = () => {
             </AdminRoute>
           }
         />
+        <Route
+          path="/admin/team"
+          element={
+            <AdminRoute>
+              <TeamPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/team/:id"
+          element={
+            <AdminRoute>
+              <TeamMemberDetailPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/leads"
+          element={
+            <AdminRoute>
+              <LeadsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/future-opportunities"
+          element={
+            <AdminRoute>
+              <FutureOpportunitiesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/customers"
+          element={
+            <AdminRoute>
+              <CustomersPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/customers/:id"
+          element={
+            <AdminRoute>
+              <CustomerDetailPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/services"
+          element={
+            <AdminRoute>
+              <ServicesPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/stock"
+          element={
+            <AdminRoute>
+              <StockPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/notifications"
+          element={
+            <AdminRoute>
+              <NotificationsPage />
+            </AdminRoute>
+          }
+        />
+        <Route
+          path="/admin/profile"
+          element={
+            <AdminRoute>
+              <ProfilePage />
+            </AdminRoute>
+          }
+        />
+
+        {/* Regular / Shared Paths */}
         <Route path="/dashboard" element={<DashboardPage />} />
+        <Route path="/team" element={<Navigate to="/admin/team" replace />} />
         <Route path="/leads" element={<LeadsPage />} />
         <Route
           path="/future-opportunities"

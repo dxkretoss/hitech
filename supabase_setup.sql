@@ -10,10 +10,12 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   email TEXT NOT NULL UNIQUE,
   role TEXT CHECK (role IN ('Sales', 'Engineer', 'Owner', 'Admin')) DEFAULT 'Sales',
   branch TEXT CHECK (branch IN ('Surat', 'Morbi', 'Rajkot')) DEFAULT 'Surat',
+  can_view_stock BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS branch TEXT DEFAULT 'Surat';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS can_view_stock BOOLEAN DEFAULT false;
 
 -- Enable RLS on Profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -23,8 +25,13 @@ CREATE POLICY "Allow public read access on profiles"
   ON public.profiles FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Allow users to update own profile" ON public.profiles;
-CREATE POLICY "Allow users to update own profile"
-  ON public.profiles FOR UPDATE USING (auth.uid() = id);
+DROP POLICY IF EXISTS "Allow public update access on profiles" ON public.profiles;
+CREATE POLICY "Allow public update access on profiles"
+  ON public.profiles FOR UPDATE USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Allow public insert access on profiles" ON public.profiles;
+CREATE POLICY "Allow public insert access on profiles"
+  ON public.profiles FOR INSERT WITH CHECK (true);
 
 -- Automatic trigger function to insert/update profile when a new user registers via Supabase Auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()
@@ -124,6 +131,10 @@ CREATE TABLE IF NOT EXISTS public.customers (
 );
 
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS branch TEXT DEFAULT 'Surat';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'Machine';
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS quantity NUMERIC DEFAULT 1;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS unit_price NUMERIC DEFAULT 0;
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS serial_number TEXT;
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS sales_person_id TEXT;
 ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS sales_person_name TEXT;
 
@@ -224,30 +235,41 @@ CREATE INDEX IF NOT EXISTS idx_stock_category ON public.stock_items(category);
 CREATE INDEX IF NOT EXISTS idx_stock_part_number ON public.stock_items(part_number);
 
 
--- 7. Seed Initial Branch Stock Items (Surat, Morbi, Rajkot)
+-- 7. Seed Initial Branch Stock Items with Official PDF Brochure Catalog (Surat, Morbi, Rajkot)
 INSERT INTO public.stock_items (id, item_name, category, part_number, branch, quantity, unit, min_alert_level, annual_consumption, unit_price, compatible_models, notes)
 VALUES
-  -- Surat Branch
-  ('STK-SRT-01', '50 HP Screw Air Compressor (Direct Drive)', 'Machine', 'HT-CMP-50HP-DD', 'Surat', 4, 'Units', 2, 24, 420000, 'Standard 50 HP Industrial Series', 'High demand textile & diamond processing units'),
-  ('STK-SRT-02', '75 HP VFD Screw Compressor (Energy Saver)', 'Machine', 'HT-CMP-75HP-VFD', 'Surat', 3, 'Units', 2, 18, 650000, 'VFD Series Plant Installations', 'Variable speed drive for heavy power saving'),
-  ('STK-SRT-03', 'Air Filter Cartridge 50 HP (Nano Fiber)', 'Spare Part', 'HT-AF-50HP-NF', 'Surat', 28, 'Units', 10, 140, 2800, '50 HP & 60 HP Screw Compressors', 'Fast moving consumable, replaced every 2000 hours'),
-  ('STK-SRT-04', 'Spin-On Oil Filter 50/75 HP', 'Spare Part', 'HT-OF-75HP-SO', 'Surat', 22, 'Units', 8, 120, 1950, '50 HP, 75 HP, 100 HP Models', 'Routine service replacement item'),
-  ('STK-SRT-05', 'Synthetic Compressor Lubricant (ISO VG 46 - 20L)', 'Spare Part', 'HT-OIL-VG46-20L', 'Surat', 15, 'Pails (20L)', 6, 95, 7800, 'All Hi-Tech Rotary Screw Series', '8000-Hour long life synthetic oil'),
-  ('STK-SRT-06', 'Air-Oil Separator Element 75 HP', 'Spare Part', 'HT-SEP-75HP-FL', 'Surat', 6, 'Units', 4, 36, 8500, '75 HP VFD & Direct Drive Series', 'Residual oil content < 3 ppm'),
+  -- Single Stage Rotary Screw Compressors (PDF Page 4)
+  ('STK-HAT-04-SRT', 'HAT 4 - 5 HP (4 kW) Rotary Screw Compressor', 'Machine', 'HAT 4', 'Surat', 4, 'Units', 2, 20, 185000, 'HAT 4 (5 HP / 4 kW) Single Stage', 'Power: 4 kW (5 HP) | FAD: 23/20/18 CFM @ 7/8/10 BAR | Noise: 57 dB(A) | Dim: 85x62x98 cm | Wt: 210 kg | Outlet: G 1/2"'),
+  ('STK-HAT-07-SRT', 'HAT 7 - 10 HP (7.5 kW) Rotary Screw Compressor', 'Machine', 'HAT 7', 'Surat', 5, 'Units', 2, 25, 245000, 'HAT 7 (10 HP / 7.5 kW) Single Stage', 'Power: 7.5 kW (10 HP) | FAD: 43/39/32 CFM @ 7/8/10 BAR | Noise: 61 dB(A) | Dim: 95x67x103 cm | Wt: 250 kg | Outlet: G 1/2"'),
+  ('STK-HAT-11-SRT', 'HAT 11 - 15 HP (11 kW) Rotary Screw Compressor', 'Machine', 'HAT 11', 'Surat', 4, 'Units', 2, 22, 295000, 'HAT 11 (15 HP / 11 kW) Single Stage', 'Power: 11 kW (15 HP) | FAD: 62/54/47 CFM @ 7/8/10 BAR | Noise: 63 dB(A) | Dim: 115x82x103 cm | Wt: 400 kg | Outlet: G 3/4"'),
+  ('STK-HAT-15-MRB', 'HAT 15 - 20 HP (15 kW) Rotary Screw Compressor', 'Machine', 'HAT 15', 'Morbi', 4, 'Units', 2, 18, 340000, 'HAT 15 (20 HP / 15 kW) Single Stage', 'Power: 15 kW (20 HP) | FAD: 90/83/77 CFM @ 7/8/10 BAR | Noise: 65 dB(A) | Dim: 115x82x103 cm | Wt: 400 kg | Outlet: G 3/4"'),
+  ('STK-HAT-18-MRB', 'HAT 18 - 25 HP (18.5 kW) Rotary Screw Compressor', 'Machine', 'HAT 18', 'Morbi', 3, 'Units', 2, 20, 395000, 'HAT 18 (25 HP / 18.5 kW) Single Stage', 'Power: 18.5 kW (25 HP) | FAD: 119/108/97 CFM @ 7/8/10 BAR | Noise: 67 dB(A) | Dim: 135x92x123 cm | Wt: 550 kg | Outlet: G 1"'),
+  ('STK-HAT-22-RJK', 'HAT 22 - 30 HP (22 kW) Rotary Screw Compressor', 'Machine', 'HAT 22', 'Rajkot', 5, 'Units', 2, 28, 445000, 'HAT 22 (30 HP / 22 kW) Single Stage', 'Power: 22 kW (30 HP) | FAD: 135/129/114 CFM @ 7/8/10 BAR | Noise: 67 dB(A) | Dim: 135x92x123 cm | Wt: 550 kg | Outlet: G 1"'),
+  ('STK-HAT-30-RJK', 'HAT 30 - 40 HP (30 kW) Rotary Screw Compressor', 'Machine', 'HAT 30', 'Rajkot', 3, 'Units', 1, 16, 520000, 'HAT 30 (40 HP / 30 kW) Single Stage', 'Power: 30 kW (40 HP) | FAD: 185/179/163 CFM @ 7/8/10 BAR | Noise: 70 dB(A) | Dim: 150x102x131 cm | Wt: 700 kg | Outlet: G-1 1/2"'),
+  ('STK-HAT-37-SRT', 'HAT 37 - 50 HP (37 kW) Rotary Screw Compressor', 'Machine', 'HAT 37', 'Surat', 4, 'Units', 2, 24, 590000, 'HAT 37 (50 HP / 37 kW) Single Stage', 'Power: 37 kW (50 HP) | FAD: 239/220/203 CFM @ 7/8/10 BAR | Noise: 71 dB(A) | Dim: 150x102x131 cm | Wt: 750 kg | Outlet: G-1 1/2"'),
+  ('STK-HAT-45-MRB', 'HAT 45 - 60 HP (45 kW) Rotary Screw Compressor', 'Machine', 'HAT 45', 'Morbi', 3, 'Units', 1, 15, 680000, 'HAT 45 (60 HP / 45 kW) Single Stage', 'Power: 45 kW (60 HP) | FAD: 286/248/225 CFM @ 7/8/10 BAR | Noise: 73 dB(A) | Dim: 150x102x131 cm | Wt: 800 kg | Outlet: G 2"'),
+  ('STK-HAT-55-SRT', 'HAT 55 - 75 HP (55 kW) Rotary Screw Compressor', 'Machine', 'HAT 55', 'Surat', 3, 'Units', 1, 14, 820000, 'HAT 55 (75 HP / 55 kW) Single Stage', 'Power: 55 kW (75 HP) | FAD: 365/325/301 CFM @ 7/8/10 BAR | Noise: 76 dB(A) | Dim: 190x126x160 cm | Wt: 1750 kg | Outlet: G 2"'),
+  ('STK-HAT-75-MRB', 'HAT 75 - 100 HP (75 kW) Rotary Screw Compressor', 'Machine', 'HAT 75', 'Morbi', 2, 'Units', 1, 12, 980000, 'HAT 75 (100 HP / 75 kW) Single Stage', 'Power: 75 kW (100 HP) | FAD: 475/446/406 CFM @ 7/8/10 BAR | Noise: 77 dB(A) | Dim: 190x126x160 cm | Wt: 1850 kg | Outlet: G 2"'),
 
-  -- Morbi Branch
-  ('STK-MRB-01', '100 HP Heavy-Duty Screw Air Compressor', 'Machine', 'HT-CMP-100HP-HD', 'Morbi', 2, 'Units', 1, 16, 890000, 'Ceramic & Heavy Vitrified Tile Plants', 'Ceramic cluster standard heavy unit'),
-  ('STK-MRB-02', '10-Ton Industrial Water Chiller', 'Machine', 'HT-CHL-10TON', 'Morbi', 3, 'Units', 1, 12, 380000, 'Ceramic Roller & Glaze Line Cooling', 'Heavy duty scroll compressor chiller'),
-  ('STK-MRB-03', 'Air Filter Cartridge 100 HP Heavy Dust', 'Spare Part', 'HT-AF-100HP-HD', 'Morbi', 35, 'Units', 12, 190, 4200, '100 HP & 120 HP Screw Compressors', 'Critical high-dust ceramic zone intake filter'),
-  ('STK-MRB-04', 'Refrigerated Air Dryer 150 CFM', 'Machine', 'HT-DRY-150CFM', 'Morbi', 4, 'Units', 2, 22, 145000, 'Moisture removal for ceramic glazing lines', '+3°C pressure dew point dryer'),
-  ('STK-MRB-05', 'Drive Belt Set (SPB 2240 - High Torque)', 'Spare Part', 'HT-BLT-SPB2240', 'Morbi', 18, 'Sets', 6, 75, 3200, '50 HP & 75 HP Belt Driven Compressors', 'Oil & heat resistant cogged raw edge belts'),
+  -- Two-Stage Rotary Screw Compressors (PDF Page 5)
+  ('STK-HAT-55II-SRT', 'HAT 55 II - 75 HP (55 kW) Two-Stage Screw Compressor', 'Machine', 'HAT 55 II', 'Surat', 2, 'Units', 1, 8, 960000, 'Two-Stage Airend (15% More Energy Efficient)', '2-Stage Airend 4 Rotor | Power: 55 kW (75 HP) | FAD: 460/435 CFM @ 7/8 BAR | Noise: 70 dB(A) | Dim: 2160x1350x1750 mm | Wt: 2320 kg | Outlet: G 2"'),
+  ('STK-HAT-75II-MRB', 'HAT 75 II - 100 HP (75 kW) Two-Stage Screw Compressor', 'Machine', 'HAT 75 II', 'Morbi', 2, 'Units', 1, 8, 1180000, 'Two-Stage Airend (15% More Energy Efficient)', '2-Stage Airend 4 Rotor | Power: 75 kW (100 HP) | FAD: 575/545 CFM @ 7/8 BAR | Noise: 73 dB(A) | Dim: 2160x1350x1750 mm | Wt: 2390 kg | Outlet: G 2"'),
+  ('STK-HAT-90II-MRB', 'HAT 90 II - 120 HP (90 kW) Two-Stage Screw Compressor', 'Machine', 'HAT 90 II', 'Morbi', 2, 'Units', 1, 6, 1390000, 'Two-Stage Airend (Heavy Vitrified Ceramic Hub)', '2-Stage Airend 4 Rotor | Power: 90 kW (120 HP) | FAD: 695/644 CFM @ 7/8 BAR | Noise: 77 dB(A) | Dim: 2420x1530x1720 mm | Wt: 3110 kg | Outlet: DN 65'),
+  ('STK-HAT-110II-RJK', 'HAT 110 II - 150 HP (110 kW) Two-Stage Screw Compressor', 'Machine', 'HAT 110 II', 'Rajkot', 1, 'Units', 1, 4, 1650000, 'Two-Stage Airend (Heavy Forging & Foundry)', '2-Stage Airend 4 Rotor | Power: 110 kW (150 HP) | FAD: 825/742 CFM @ 7/8 BAR | Noise: 79 dB(A) | Dim: 2650x1600x1850 mm | Wt: 3530 kg | Outlet: DN 80'),
+  ('STK-HAT-132II-RJK', 'HAT 132 II - 175 HP (132 kW) Two-Stage Screw Compressor', 'Machine', 'HAT 132 II', 'Rajkot', 1, 'Units', 1, 4, 1890000, 'Two-Stage Airend (Mega Industrial Plants)', '2-Stage Airend 4 Rotor | Power: 132 kW (175 HP) | FAD: 985/888 CFM @ 7/8 BAR | Noise: 83 dB(A) | Dim: 2650x1600x1850 mm | Wt: 3600 kg | Outlet: DN 80'),
 
-  -- Rajkot Branch
-  ('STK-RJK-01', '30 HP Compact Rotary Screw Compressor', 'Machine', 'HT-CMP-30HP-CP', 'Rajkot', 5, 'Units', 2, 28, 295000, 'CNC Machine Shops & Forging Units', 'Popular in Rajkot engineering and auto-parts hub'),
-  ('STK-RJK-02', 'Refrigerated Air Dryer 100 CFM', 'Machine', 'HT-DRY-100CFM', 'Rajkot', 3, 'Units', 2, 20, 98000, '30 HP & 50 HP CNC workshop lines', 'Ensures moisture-free pneumatic tooling'),
-  ('STK-RJK-03', 'Air Filter Cartridge 30 HP Compact', 'Spare Part', 'HT-AF-30HP-CP', 'Rajkot', 24, 'Units', 8, 110, 2200, '30 HP Compact Series', 'Fast moving consumable in Rajkot machine tooling'),
-  ('STK-RJK-04', 'Thermostatic Valve Element (71°C)', 'Spare Part', 'HT-THV-71C', 'Rajkot', 8, 'Units', 3, 32, 4500, 'All Oil Injected Screw Compressors', 'Oil temperature regulation valve'),
-  ('STK-RJK-05', 'Minimum Pressure Valve (MPV) Kit', 'Spare Part', 'HT-MPV-KIT-50', 'Rajkot', 5, 'Kits', 3, 26, 5800, '50 HP Discharge Line Valves', 'Includes internal seals and return spring')
+  -- Air Treatment & Dryers (PDF Page 7)
+  ('STK-RAD-100-SRT', 'Refrigerated Air Dryer 100 CFM', 'Machine', 'HT-RAD-100', 'Surat', 4, 'Units', 2, 20, 98000, 'HAT 4 to HAT 22 Screw Compressors', '+3°C pressure dew point moisture removal dryer'),
+  ('STK-RAD-150-MRB', 'Refrigerated Air Dryer 150 CFM', 'Machine', 'HT-RAD-150', 'Morbi', 3, 'Units', 2, 18, 145000, 'HAT 30 to HAT 55 Screw Compressors', '+3°C pressure dew point moisture removal dryer'),
+  ('STK-ART-1000L-RJK', 'Industrial Air Receiver Tank 1000L (10 Bar)', 'Machine', 'HT-ART-1000L', 'Rajkot', 2, 'Units', 1, 10, 115000, 'Vertical Compressed Air Storage Tank', 'Vertical 1000L Tank with certified safety valve & pressure gauge'),
+
+  -- Spare Parts & Consumables
+  ('STK-SP-AF11-SRT', 'Air Filter Cartridge (HAT 4 - HAT 11)', 'Spare Part', 'HT-AF-HAT11', 'Surat', 30, 'Units', 10, 150, 1800, 'HAT 4, HAT 7, HAT 11 Models', '99.9% dedusting intake filter for compact screw series'),
+  ('STK-SP-AF37-MRB', 'Air Filter Cartridge (HAT 15 - HAT 37)', 'Spare Part', 'HT-AF-HAT37', 'Morbi', 28, 'Units', 8, 130, 2600, 'HAT 15, HAT 18, HAT 22, HAT 30, HAT 37 Models', 'Heavy duty nano-fiber air filter'),
+  ('STK-SP-AF75-RJK', 'Air Filter Cartridge (HAT 45 - HAT 75)', 'Spare Part', 'HT-AF-HAT75', 'Rajkot', 20, 'Units', 6, 90, 3800, 'HAT 45, HAT 55, HAT 75 Models', 'High capacity dust intake filter'),
+  ('STK-SP-OF-SRT', 'Spin-On Oil Filter (HAT Series)', 'Spare Part', 'HT-OF-HAT-SO', 'Surat', 25, 'Units', 8, 120, 1950, 'All HAT Single Stage & Two Stage Compressors', 'High pressure spin-on oil filter'),
+  ('STK-SP-SEP-MRB', 'Air-Oil Separator Element (HAT 37 - HAT 75)', 'Spare Part', 'HT-SEP-HAT-FL', 'Morbi', 12, 'Units', 4, 40, 8500, 'HAT 37, HAT 45, HAT 55, HAT 75 Models', 'Residual oil content < 3 ppm'),
+  ('STK-SP-OIL-SRT', 'Synthetic Compressor Lubricant (ISO VG 46 - 20L)', 'Spare Part', 'HT-OIL-VG46-20L', 'Surat', 18, 'Pails (20L)', 6, 110, 7800, 'All Hi-Tech HAT Rotary Screw Series', '8000-Hour long life synthetic rotary screw lubricant')
 ON CONFLICT (id) DO UPDATE
 SET 
   item_name = EXCLUDED.item_name,

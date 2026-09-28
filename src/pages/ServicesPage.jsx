@@ -42,6 +42,8 @@ export const ServicesPage = () => {
   const { currentUser, role } = useAuth();
   const userBranch = currentUser?.branch || 'Surat';
   const isAdmin = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
+  const hasStockAccess = isAdmin || currentUser?.canViewStock === true;
+  const canAddMachine = isAdmin || currentUser?.canViewStock === true || currentUser?.canAddMachine === true;
 
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTabParam = searchParams.get('tab');
@@ -49,7 +51,7 @@ export const ServicesPage = () => {
   // Derive initial mainView from URL search param (?tab=schedules | installations | spare-parts)
   const getInitialView = () => {
     if (currentTabParam === 'installations') return 'INSTALLATIONS';
-    if (currentTabParam === 'spare-parts' || currentTabParam === 'spares' || currentTabParam === 'stock') return 'SPARE_PARTS_STOCK';
+    if ((currentTabParam === 'spare-parts' || currentTabParam === 'spares' || currentTabParam === 'stock') && hasStockAccess) return 'SPARE_PARTS_STOCK';
     return 'SCHEDULES';
   };
 
@@ -60,12 +62,12 @@ export const ServicesPage = () => {
   useEffect(() => {
     if (currentTabParam === 'installations') {
       setMainView('INSTALLATIONS');
-    } else if (currentTabParam === 'spare-parts' || currentTabParam === 'spares' || currentTabParam === 'stock') {
+    } else if ((currentTabParam === 'spare-parts' || currentTabParam === 'spares' || currentTabParam === 'stock') && hasStockAccess) {
       setMainView('SPARE_PARTS_STOCK');
     } else if (currentTabParam === 'schedules') {
       setMainView('SCHEDULES');
     }
-  }, [currentTabParam]);
+  }, [currentTabParam, hasStockAccess]);
 
   const handleTabChange = (viewKey) => {
     setMainView(viewKey);
@@ -254,8 +256,21 @@ export const ServicesPage = () => {
     return true;
   });
 
+  // Base machine installations (show ONLY data added/recorded by this user; for Admin: show all)
+  const userInstallations = installations.filter((inst) => {
+    if (isAdmin) return true;
+    if (!currentUser) return false;
+    const name = (currentUser.name || '').toLowerCase();
+    const salesName = (inst.salesPersonName || '').toLowerCase();
+    const salesId = inst.salesPersonId || '';
+    return (
+      salesId === currentUser.id ||
+      (salesName && (salesName.includes(name) || name.includes(salesName)))
+    );
+  });
+
   // Filtered Machine Installations
-  const filteredInstallations = installations.filter((inst) => {
+  const filteredInstallations = userInstallations.filter((inst) => {
     if (installationBranchFilter !== 'ALL') {
       if ((inst.branch || 'Surat') !== installationBranchFilter) return false;
     }
@@ -282,9 +297,15 @@ export const ServicesPage = () => {
     return true;
   });
 
+  // Base spare parts (Engineer only sees their branch warehouse spare parts; Admin sees all)
+  const userSpareParts = spareParts.filter((item) => {
+    if (isAdmin) return true;
+    return item.branch === userBranch;
+  });
+
   // Filtered Spare Parts Stock
-  const filteredSpareParts = spareParts.filter((item) => {
-    if (branchFilter !== 'ALL') {
+  const filteredSpareParts = userSpareParts.filter((item) => {
+    if (isAdmin && branchFilter !== 'ALL') {
       if (item.branch !== branchFilter) return false;
     }
 
@@ -308,17 +329,18 @@ export const ServicesPage = () => {
   const countUpcoming = services.filter((s) => s.status === 'Upcoming').length;
   const countCompleted = services.filter((s) => s.status === 'Completed').length;
 
-  const totalSpareUnits = spareParts.reduce((acc, p) => acc + (Number(p.quantity) || 0), 0);
-  const lowStockPartsCount = spareParts.filter((p) => getConsumptionVelocity(p).isLowStock).length;
-  const suratPartsCount = spareParts.filter((p) => p.branch === 'Surat').length;
-  const morbiPartsCount = spareParts.filter((p) => p.branch === 'Morbi').length;
-  const rajkotPartsCount = spareParts.filter((p) => p.branch === 'Rajkot').length;
+  const totalSpareUnits = userSpareParts.reduce((acc, p) => acc + (Number(p.quantity) || 0), 0);
+  const lowStockPartsCount = userSpareParts.filter((p) => getConsumptionVelocity(p).isLowStock).length;
+  const fastMovingPartsCount = userSpareParts.filter((p) => getConsumptionVelocity(p).isFastMoving).length;
+  const suratPartsCount = userSpareParts.filter((p) => p.branch === 'Surat').length;
+  const morbiPartsCount = userSpareParts.filter((p) => p.branch === 'Morbi').length;
+  const rajkotPartsCount = userSpareParts.filter((p) => p.branch === 'Rajkot').length;
 
   // Installation metrics
-  const suratInstallCount = installations.filter((i) => (i.branch || 'Surat') === 'Surat').length;
-  const morbiInstallCount = installations.filter((i) => i.branch === 'Morbi').length;
-  const rajkotInstallCount = installations.filter((i) => i.branch === 'Rajkot').length;
-  const commissionedCount = installations.filter((i) => {
+  const suratInstallCount = userInstallations.filter((i) => (i.branch || 'Surat') === 'Surat').length;
+  const morbiInstallCount = userInstallations.filter((i) => i.branch === 'Morbi').length;
+  const rajkotInstallCount = userInstallations.filter((i) => i.branch === 'Rajkot').length;
+  const commissionedCount = userInstallations.filter((i) => {
     const srv = services.find((s) => s.customerId === i.id || s.customerName === i.customerName);
     return srv?.status === 'Completed';
   }).length;
@@ -667,46 +689,57 @@ export const ServicesPage = () => {
     },
     {
       header: 'Actions',
-      cell: (row) => (
-        <div className="flex items-center gap-1.5">
-          <Button
-            size="sm"
-            variant="outline"
-            icon={SlidersHorizontal}
-            onClick={() => {
-              setSelectedPart(row);
-              setAdjustModalOpen(true);
-            }}
-            title="Adjust Stock Qty"
-          >
-            Adjust
-          </Button>
+      cell: (row) => {
+        if (isAdmin) {
+          return (
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                icon={SlidersHorizontal}
+                onClick={() => {
+                  setSelectedPart(row);
+                  setAdjustModalOpen(true);
+                }}
+                title="Adjust Stock Qty"
+              >
+                Adjust
+              </Button>
 
-          <Button
-            size="sm"
-            variant="secondary"
-            icon={ArrowRightLeft}
-            onClick={() => {
-              setSelectedPart(row);
-              setTransferModalOpen(true);
-            }}
-            title="Transfer to another Branch"
-          >
-            Transfer
-          </Button>
+              <Button
+                size="sm"
+                variant="secondary"
+                icon={ArrowRightLeft}
+                onClick={() => {
+                  setSelectedPart(row);
+                  setTransferModalOpen(true);
+                }}
+                title="Transfer to another Branch"
+              >
+                Transfer
+              </Button>
 
-          <button
-            onClick={() => {
-              setSelectedPart(row);
-              setDeletePartModalOpen(true);
-            }}
-            className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
-            title="Delete Part"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      )
+              <button
+                onClick={() => {
+                  setSelectedPart(row);
+                  setDeletePartModalOpen(true);
+                }}
+                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+                title="Delete Part"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            </div>
+          );
+        }
+
+        return (
+          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded-lg">
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            Stock Available
+          </span>
+        );
+      }
     }
   ];
 
@@ -729,12 +762,12 @@ export const ServicesPage = () => {
               Schedule Service
             </Button>
           )}
-          {mainView === 'INSTALLATIONS' && (
+          {mainView === 'INSTALLATIONS' && canAddMachine && (
             <Button onClick={() => setNewInstallationModalOpen(true)} variant="white" icon={Plus}>
               Record New Installation
             </Button>
           )}
-          {mainView === 'SPARE_PARTS_STOCK' && (
+          {mainView === 'SPARE_PARTS_STOCK' && isAdmin && (
             <Button onClick={() => setAddPartModalOpen(true)} variant="white" icon={Plus}>
               Add Spare Part
             </Button>
@@ -765,20 +798,22 @@ export const ServicesPage = () => {
           }`}
         >
           <Layers className="w-4 h-4" />
-          New Machine Installations ({installations.length})
+          New Machine Installations ({userInstallations.length})
         </button>
 
-        <button
-          onClick={() => handleTabChange('SPARE_PARTS_STOCK')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
-            mainView === 'SPARE_PARTS_STOCK'
-              ? 'bg-emerald-700 text-white shadow-md'
-              : 'text-gray-600 hover:text-gray-900'
-          }`}
-        >
-          <Boxes className="w-4 h-4" />
-          Branch Spare Parts Stock & 1-Yr Consumption ({spareParts.length})
-        </button>
+        {hasStockAccess && (
+          <button
+            onClick={() => handleTabChange('SPARE_PARTS_STOCK')}
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              mainView === 'SPARE_PARTS_STOCK'
+                ? 'bg-emerald-700 text-white shadow-md'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Boxes className="w-4 h-4" />
+            {isAdmin ? 'Branch Spare Parts Stock & 1-Yr Consumption' : `${userBranch} Branch Spare Parts Stock`} ({userSpareParts.length})
+          </button>
+        )}
       </div>
 
       {/* VIEW 1: SERVICE SCHEDULES */}
@@ -827,8 +862,8 @@ export const ServicesPage = () => {
                 <span className="text-[11px] font-bold text-emerald-800 uppercase">Total Machine Installations</span>
                 <Layers className="w-4 h-4 text-emerald-600" />
               </div>
-              <span className="text-2xl font-black text-emerald-950 block mt-1">{installations.length}</span>
-              <span className="text-[10px] text-gray-500">Across all branch accounts</span>
+              <span className="text-2xl font-black text-emerald-950 block mt-1">{userInstallations.length}</span>
+              <span className="text-[10px] text-gray-500">{isAdmin ? 'Across all branch accounts' : 'Registered by you'}</span>
             </Card>
 
             <Card className="p-4 bg-indigo-50/60 border border-indigo-100">
@@ -860,8 +895,8 @@ export const ServicesPage = () => {
                 <span className="text-[11px] font-bold text-amber-800 uppercase">Pending 1st Service</span>
                 <Clock className="w-4 h-4 text-amber-600" />
               </div>
-              <span className="text-2xl font-black text-amber-700 block mt-1">{installations.length - commissionedCount}</span>
-              <span className="text-[10px] text-amber-600 font-semibold">Engineer action needed</span>
+              <span className="text-2xl font-black text-amber-700 block mt-1">{userInstallations.length - commissionedCount}</span>
+              <span className="text-[10px] text-amber-600 font-semibold">Action needed</span>
             </Card>
           </div>
 
@@ -883,7 +918,7 @@ export const ServicesPage = () => {
                 onChange={(e) => setInstallationBranchFilter(e.target.value)}
                 className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-gray-700 outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
               >
-                <option value="ALL">All Branches ({installations.length})</option>
+                <option value="ALL">All Branches ({userInstallations.length})</option>
                 <option value="Surat">Surat ({suratInstallCount})</option>
                 <option value="Morbi">Morbi ({morbiInstallCount})</option>
                 <option value="Rajkot">Rajkot ({rajkotInstallCount})</option>
@@ -896,7 +931,7 @@ export const ServicesPage = () => {
               >
                 <option value="ALL">All Status</option>
                 <option value="COMMISSIONED">Commissioned & Serviced ({commissionedCount})</option>
-                <option value="PENDING">Pending 1st Service ({installations.length - commissionedCount})</option>
+                <option value="PENDING">Pending 1st Service ({userInstallations.length - commissionedCount})</option>
               </select>
             </div>
 
@@ -948,7 +983,7 @@ export const ServicesPage = () => {
                 <Flame className="w-4 h-4 text-rose-600" />
               </div>
               <span className="text-2xl font-black text-rose-700 block mt-1">
-                {spareParts.filter((p) => getConsumptionVelocity(p).isFastMoving).length}
+                {fastMovingPartsCount}
               </span>
               <span className="text-[10px] text-rose-600 font-semibold">High 1-Yr consumption</span>
             </Card>
@@ -976,16 +1011,23 @@ export const ServicesPage = () => {
                 />
               </div>
 
-              <select
-                value={branchFilter}
-                onChange={(e) => setBranchFilter(e.target.value)}
-                className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-gray-700 outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
-              >
-                <option value="ALL">All Branches ({spareParts.length})</option>
-                <option value="Surat">Surat ({suratPartsCount})</option>
-                <option value="Morbi">Morbi ({morbiPartsCount})</option>
-                <option value="Rajkot">Rajkot ({rajkotPartsCount})</option>
-              </select>
+              {isAdmin ? (
+                <select
+                  value={branchFilter}
+                  onChange={(e) => setBranchFilter(e.target.value)}
+                  className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-gray-700 outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
+                >
+                  <option value="ALL">All Branches ({spareParts.length})</option>
+                  <option value="Surat">Surat ({spareParts.filter(p => p.branch === 'Surat').length})</option>
+                  <option value="Morbi">Morbi ({spareParts.filter(p => p.branch === 'Morbi').length})</option>
+                  <option value="Rajkot">Rajkot ({spareParts.filter(p => p.branch === 'Rajkot').length})</option>
+                </select>
+              ) : (
+                <div className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-emerald-200 rounded-xl bg-emerald-50 text-emerald-800 flex items-center gap-1.5 shrink-0">
+                  <Building2 className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>{userBranch} Warehouse ({userSpareParts.length})</span>
+                </div>
+              )}
 
               <select
                 value={velocityFilter}
@@ -1036,58 +1078,66 @@ export const ServicesPage = () => {
         defaultBranch={installationBranchFilter !== 'ALL' ? installationBranchFilter : userBranch}
       />
 
-      {/* Add Spare Part Modal */}
-      <AddStockItemModal
-        isOpen={addPartModalOpen}
-        onClose={() => setAddPartModalOpen(false)}
-        onStockAdded={handlePartAdded}
-        defaultBranch={branchFilter !== 'ALL' ? branchFilter : 'Surat'}
-      />
+      {/* Add Spare Part Modal (ADMIN ONLY) */}
+      {isAdmin && (
+        <AddStockItemModal
+          isOpen={addPartModalOpen}
+          onClose={() => setAddPartModalOpen(false)}
+          onStockAdded={handlePartAdded}
+          defaultBranch={branchFilter !== 'ALL' ? branchFilter : 'Surat'}
+        />
+      )}
 
-      {/* Adjust Spare Part Quantity Modal */}
-      <AdjustStockModal
-        isOpen={adjustModalOpen}
-        onClose={() => {
-          setAdjustModalOpen(false);
-          setSelectedPart(null);
-        }}
-        item={selectedPart}
-        onStockAdjusted={handlePartAdjusted}
-      />
+      {/* Adjust Spare Part Quantity Modal (ADMIN ONLY) */}
+      {isAdmin && (
+        <AdjustStockModal
+          isOpen={adjustModalOpen}
+          onClose={() => {
+            setAdjustModalOpen(false);
+            setSelectedPart(null);
+          }}
+          item={selectedPart}
+          onStockAdjusted={handlePartAdjusted}
+        />
+      )}
 
-      {/* Inter-Branch Transfer Modal */}
-      <TransferStockModal
-        isOpen={transferModalOpen}
-        onClose={() => {
-          setTransferModalOpen(false);
-          setSelectedPart(null);
-        }}
-        item={selectedPart}
-        onStockTransferred={handlePartTransferred}
-      />
+      {/* Inter-Branch Transfer Modal (ADMIN ONLY) */}
+      {isAdmin && (
+        <TransferStockModal
+          isOpen={transferModalOpen}
+          onClose={() => {
+            setTransferModalOpen(false);
+            setSelectedPart(null);
+          }}
+          item={selectedPart}
+          onStockTransferred={handlePartTransferred}
+        />
+      )}
 
-      {/* Delete Spare Part Confirmation Modal */}
-      <ConfirmModal
-        isOpen={deletePartModalOpen}
-        onClose={() => {
-          setDeletePartModalOpen(false);
-          setSelectedPart(null);
-        }}
-        onConfirm={handleConfirmDeletePart}
-        title="Delete Spare Part?"
-        description={
-          selectedPart ? (
-            <span>
-              Are you sure you want to delete <strong className="text-gray-900">{selectedPart.itemName}</strong> ({selectedPart.partNumber}) from {selectedPart.branch} branch inventory?
-            </span>
-          ) : (
-            'Delete this item?'
-          )
-        }
-        confirmText="Yes, Delete Part"
-        cancelText="Cancel"
-        variant="danger"
-      />
+      {/* Delete Spare Part Confirmation Modal (ADMIN ONLY) */}
+      {isAdmin && (
+        <ConfirmModal
+          isOpen={deletePartModalOpen}
+          onClose={() => {
+            setDeletePartModalOpen(false);
+            setSelectedPart(null);
+          }}
+          onConfirm={handleConfirmDeletePart}
+          title="Delete Spare Part?"
+          description={
+            selectedPart ? (
+              <span>
+                Are you sure you want to delete <strong className="text-gray-900">{selectedPart.itemName}</strong> ({selectedPart.partNumber}) from {selectedPart.branch} branch inventory?
+              </span>
+            ) : (
+              'Delete this item?'
+            )
+          }
+          confirmText="Yes, Delete Part"
+          cancelText="Cancel"
+          variant="danger"
+        />
+      )}
 
       {/* Delete Machine Installation Confirmation Modal */}
       <ConfirmModal

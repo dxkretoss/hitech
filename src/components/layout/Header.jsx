@@ -13,8 +13,19 @@ export const Header = ({ onOpenSidebar }) => {
 
   const userBranch = currentUser?.branch || branch || 'Surat';
 
+  const isOwner = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
+
   const getPageTitle = () => {
-    if (location.pathname === '/admin/dashboard') return 'Admin Panel';
+    if (location.pathname === '/admin/dashboard') return 'Admin Dashboard';
+    if (location.pathname === '/admin/team') return 'Team Members';
+    if (location.pathname.startsWith('/admin/team/')) return 'Team Member Details';
+    if (location.pathname === '/stock') {
+      return isOwner ? 'Stock & Inventory' : 'Sold Items';
+    }
+    if (location.pathname.startsWith('/admin/')) {
+      const sub = location.pathname.replace('/admin/', '');
+      return sub.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    }
     const path = location.pathname.replace('/', '');
     if (!path || path === 'dashboard') return 'Dashboard';
     return path.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
@@ -47,7 +58,7 @@ export const Header = ({ onOpenSidebar }) => {
 
   const handleNavigateProfile = () => {
     setDropdownOpen(false);
-    navigate('/profile');
+    navigate(isOwner ? '/admin/profile' : '/profile');
   };
 
   return (

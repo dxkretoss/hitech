@@ -100,6 +100,20 @@ export const loginUser = async ({ email, password }) => {
         setAuthCookie(data.session.access_token);
       }
 
+      let canViewStock = false;
+      try {
+        const { data: profileRow } = await supabase
+          .from('profiles')
+          .select('can_view_stock, role, branch, name')
+          .eq('id', data.user.id)
+          .maybeSingle();
+        if (profileRow) {
+          if (profileRow.can_view_stock === true) canViewStock = true;
+        }
+      } catch (err) {
+        console.warn('Profile fetch error during login:', err);
+      }
+
       const metadata = data.user.user_metadata || {};
       const user = {
         id: data.user.id,
@@ -107,6 +121,8 @@ export const loginUser = async ({ email, password }) => {
         name: metadata.name || metadata.full_name || cleanEmail.split('@')[0],
         role: metadata.role || 'Sales',
         branch: metadata.branch || 'Surat',
+        canViewStock: canViewStock,
+        can_view_stock: canViewStock,
         avatar: metadata.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
       };
 
@@ -243,12 +259,28 @@ export const getCurrentSessionUser = async () => {
   }
 
   const metadata = session.user.user_metadata || {};
+  let canViewStock = false;
+  try {
+    const { data: profileRow } = await supabase
+      .from('profiles')
+      .select('can_view_stock, role, branch, name')
+      .eq('id', session.user.id)
+      .maybeSingle();
+    if (profileRow) {
+      if (profileRow.can_view_stock === true) canViewStock = true;
+    }
+  } catch (err) {
+    console.warn('Profile fetch error during getSession:', err);
+  }
+
   return {
     id: session.user.id,
     email: session.user.email,
     name: metadata.name || metadata.full_name || session.user.email.split('@')[0],
     role: metadata.role || 'Sales',
     branch: metadata.branch || 'Surat',
+    canViewStock: canViewStock,
+    can_view_stock: canViewStock,
     avatar: metadata.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
   };
 };

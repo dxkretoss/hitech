@@ -17,7 +17,7 @@ export const Modal = ({ isOpen, onClose, title, children, maxWidth = 'max-w-xl' 
             <X className="w-5 h-5" />
           </button>
         </div>
-        <div className="p-6 max-h-[80vh] overflow-y-auto">
+        <div className="p-6 max-h-[82vh] overflow-y-auto overscroll-contain scrollbar-thin">
           {children}
         </div>
       </div>

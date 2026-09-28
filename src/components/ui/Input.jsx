@@ -33,6 +33,14 @@ export const Input = ({
         required={required}
         min={computedMin}
         max={max}
+        onWheel={(e) => {
+          if (type === 'number') {
+            e.currentTarget.blur();
+          }
+          if (rest.onWheel) {
+            rest.onWheel(e);
+          }
+        }}
         {...rest}
         className={`w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] focus:border-[#3B318A] outline-none transition-all ${className}`}
       />

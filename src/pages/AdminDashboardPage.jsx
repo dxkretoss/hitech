@@ -1,49 +1,27 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext.jsx';
 import { db } from '../services/db.js';
 import { Card } from '../components/ui/Card.jsx';
 import { Badge } from '../components/ui/Badge.jsx';
-import { Button } from '../components/ui/Button.jsx';
-import { Modal } from '../components/ui/Modal.jsx';
 import { AdminAnalyticsCharts } from '../components/admin/AdminAnalyticsCharts.jsx';
 import {
-  Users,
   Briefcase,
   Wrench,
-  UserPlus,
-  CheckCircle,
-  Key,
-  Filter,
-  Sparkles,
   TrendingUp,
   UserCheck,
-  Calendar,
-  Clock,
-  ShieldCheck
+  Sparkles
 } from 'lucide-react';
-import { toast } from 'sonner';
 
 export const AdminDashboardPage = () => {
-  const { signup } = useAuth();
   const navigate = useNavigate();
 
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newName, setNewName] = useState('');
-  const [newEmail, setNewEmail] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [newRole, setNewRole] = useState('Sales');
-  
   const [staffList, setStaffList] = useState([]);
   const [leads, setLeads] = useState([]);
   const [futureOpps, setFutureOpps] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [services, setServices] = useState([]);
   const [salesSummary, setSalesSummary] = useState([]);
-  
-  const [selectedSalesRepFilter, setSelectedSalesRepFilter] = useState('All');
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
 
   const loadAdminData = async () => {
     setLoading(true);
@@ -69,37 +47,8 @@ export const AdminDashboardPage = () => {
     loadAdminData();
   }, []);
 
-  const handleCreateStaff = async (e) => {
-    e.preventDefault();
-    setSubmitting(true);
-
-    const { user, error } = await signup({
-      name: newName,
-      email: newEmail,
-      password: newPassword,
-      role: newRole
-    });
-
-    setSubmitting(false);
-
-    if (user || !error) {
-      toast.success(`New ${newRole} staff account created successfully!`);
-      setShowAddModal(false);
-      setNewName('');
-      setNewEmail('');
-      setNewPassword('');
-      await loadAdminData();
-    }
-  };
-
   const salesRepsList = staffList.filter(s => s.role === 'Sales');
   const fieldEngineersList = staffList.filter(s => s.role === 'Engineer');
-
-  // Filter leads based on selected sales person
-  const displayedLeads = leads.filter(l => {
-    if (selectedSalesRepFilter === 'All') return true;
-    return l.salesPersonName === selectedSalesRepFilter;
-  });
 
   if (loading) {
     return (
@@ -129,7 +78,7 @@ export const AdminDashboardPage = () => {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <Card className="border-l-4 border-l-blue-600">
+        <Card className="border-l-4 border-l-blue-600 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/admin/team')}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase">Sales Persons</span>
             <Briefcase className="w-4 h-4 text-blue-600" />
@@ -138,7 +87,7 @@ export const AdminDashboardPage = () => {
           <span className="text-[11px] text-gray-400">Added Sales Reps</span>
         </Card>
 
-        <Card className="border-l-4 border-l-indigo-600">
+        <Card className="border-l-4 border-l-indigo-600 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/admin/leads')}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase">Total Sales Leads</span>
             <TrendingUp className="w-4 h-4 text-indigo-600" />
@@ -147,7 +96,7 @@ export const AdminDashboardPage = () => {
           <span className="text-[11px] text-gray-400">Captured by Sales Team</span>
         </Card>
 
-        <Card className="border-l-4 border-l-amber-500">
+        <Card className="border-l-4 border-l-amber-500 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/admin/future-opportunities')}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase">Future Requirements</span>
             <Sparkles className="w-4 h-4 text-amber-500" />
@@ -156,7 +105,7 @@ export const AdminDashboardPage = () => {
           <span className="text-[11px] text-amber-700 font-medium">Deferred Client Needs</span>
         </Card>
 
-        <Card className="border-l-4 border-l-emerald-500">
+        <Card className="border-l-4 border-l-emerald-500 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/admin/customers')}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase">Deals Sold</span>
             <UserCheck className="w-4 h-4 text-emerald-500" />
@@ -165,7 +114,7 @@ export const AdminDashboardPage = () => {
           <span className="text-[11px] text-emerald-600 font-bold">Converted Customers</span>
         </Card>
 
-        <Card className="border-l-4 border-l-teal-500">
+        <Card className="border-l-4 border-l-teal-500 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/admin/services')}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase">Field Engineers</span>
             <Wrench className="w-4 h-4 text-teal-500" />
@@ -182,299 +131,6 @@ export const AdminDashboardPage = () => {
         services={services}
         salesSummary={salesSummary}
       />
-
-      {/* REQUIREMENT CHECK: Sales Person Performance & Data Breakdown */}
-      <Card className="p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-4 border-gray-100">
-          <div>
-            <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#3B318A]" />
-              Sales Representative Performance & Lead Data Attribution
-            </h3>
-            <p className="text-xs text-gray-500">
-              Breakdown of how many sales persons are added and which lead/future requirement data was captured by which sales person.
-            </p>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {salesSummary.map((rep) => (
-            <div key={rep.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-3 shadow-xs hover:border-[#3B318A] transition-all">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h4 className="text-sm font-bold text-gray-900">{rep.name}</h4>
-                  <p className="text-xs text-gray-500">{rep.email}</p>
-                </div>
-                <Badge variant="primary">Sales Rep</Badge>
-              </div>
-
-              <div className="grid grid-cols-3 gap-2 pt-1 border-t border-slate-200/60 text-center">
-                <div className="bg-white p-2 rounded-xl border border-slate-100">
-                  <span className="text-[10px] text-gray-500 block uppercase font-bold">Leads</span>
-                  <span className="text-base font-black text-indigo-900">{rep.totalLeads}</span>
-                </div>
-                <div className="bg-white p-2 rounded-xl border border-slate-100">
-                  <span className="text-[10px] text-gray-500 block uppercase font-bold">Future Req</span>
-                  <span className="text-base font-black text-amber-600">{rep.futureOpps}</span>
-                </div>
-                <div className="bg-white p-2 rounded-xl border border-slate-100">
-                  <span className="text-[10px] text-gray-500 block uppercase font-bold">Won Deals</span>
-                  <span className="text-base font-black text-emerald-600">{rep.wonDeals}</span>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      {/* Detailed Lead Breakdown by Sales Representative */}
-      <Card className="p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-4 border-gray-100">
-          <div>
-            <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
-              <Briefcase className="w-5 h-5 text-[#3B318A]" />
-              Detailed Lead Data Feed (Filtered by Sales Person)
-            </h3>
-            <p className="text-xs text-gray-500">Inspect exact client requirements submitted by each sales team member</p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-400" />
-            <select
-              value={selectedSalesRepFilter}
-              onChange={(e) => setSelectedSalesRepFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs font-bold border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] bg-white text-gray-800"
-            >
-              <option value="All">Show All Sales Persons Data</option>
-              {salesRepsList.map(rep => (
-                <option key={rep.id} value={rep.name}>{rep.name} ({rep.email})</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold uppercase text-[10px]">
-                <th className="py-3 px-4">Customer & Company</th>
-                <th className="py-3 px-4">Contact Phone</th>
-                <th className="py-3 px-4">Requirement / Product</th>
-                <th className="py-3 px-4">Captured By (Sales Person)</th>
-                <th className="py-3 px-4">Requirement Status</th>
-                <th className="py-3 px-4">Follow Up / Timeline</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {displayedLeads.length === 0 ? (
-                <tr>
-                  <td colSpan={6} className="py-6 text-center text-xs text-gray-400">
-                    No lead records found for selected sales person filter.
-                  </td>
-                </tr>
-              ) : (
-                displayedLeads.map((lead) => (
-                  <tr key={lead.id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="py-3 px-4">
-                      <p className="font-bold text-gray-900">{lead.customerName}</p>
-                      <p className="text-[11px] text-gray-500">{lead.company}</p>
-                    </td>
-                    <td className="py-3 px-4 text-gray-600">{lead.phone}</td>
-                    <td className="py-3 px-4 text-gray-900 font-medium">{lead.requirement || lead.interestedProduct}</td>
-                    <td className="py-3 px-4">
-                      <span className="inline-flex items-center gap-1 text-xs font-bold text-[#3B318A] bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-100">
-                        {lead.salesPersonName || 'Vikram Mehta'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4">
-                      <Badge variant={lead.status === 'Won' ? 'success' : lead.status === 'Future Requirement' ? 'warning' : 'primary'}>
-                        {lead.status}
-                      </Badge>
-                    </td>
-                    <td className="py-3 px-4 text-gray-500 font-semibold">{lead.followUpDate}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Field Engineer Service Operations & Scheduled Reminders Overview */}
-      <Card className="p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-4 border-gray-100">
-          <div>
-            <h3 className="text-base font-black text-gray-900 flex items-center gap-2">
-              <Wrench className="w-5 h-5 text-teal-600" />
-              Field Engineering Service Dispatch & Preventative Maintenance ({services.length})
-            </h3>
-            <p className="text-xs text-gray-500">Live monitoring of customer machine servicing (+2m, +6m, +10m auto-generated schedules)</p>
-          </div>
-          <Button
-            variant="outline"
-            icon={Calendar}
-            onClick={() => navigate('/services')}
-            className="text-xs"
-          >
-            Open Full Service Center
-          </Button>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold uppercase text-[10px]">
-                <th className="py-3 px-4">Customer & Company</th>
-                <th className="py-3 px-4">Service Type</th>
-                <th className="py-3 px-4">Assigned Engineer</th>
-                <th className="py-3 px-4">Scheduled Date</th>
-                <th className="py-3 px-4">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {services.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="py-6 text-center text-xs text-gray-400">
-                    No field services scheduled yet.
-                  </td>
-                </tr>
-              ) : (
-                services.slice(0, 5).map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50/70 transition-colors">
-                    <td className="py-3 px-4 font-bold text-gray-900">{s.customerName} <span className="text-gray-400 font-normal">({s.company})</span></td>
-                    <td className="py-3 px-4 text-gray-700">{s.serviceName}</td>
-                    <td className="py-3 px-4 font-semibold text-teal-700">{s.assignedEngineer}</td>
-                    <td className="py-3 px-4 font-bold text-gray-900">{s.scheduledDate}</td>
-                    <td className="py-3 px-4">
-                      <Badge variant={s.status === 'Completed' ? 'success' : s.status === 'Upcoming' ? 'info' : 'warning'}>
-                        {s.status}
-                      </Badge>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Staff Accounts Management List */}
-      <Card className="p-6 space-y-4">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b pb-4 border-gray-100">
-          <div>
-            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <Users className="w-5 h-5 text-[#3B318A]" />
-              Registered Staff Accounts ({staffList.length})
-            </h3>
-            <p className="text-xs text-gray-500">Active credentials for Sales Representatives & Field Engineers</p>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200 text-gray-600 font-bold uppercase text-[10px]">
-                <th className="py-3 px-4">Staff Member Name</th>
-                <th className="py-3 px-4">Email Address</th>
-                <th className="py-3 px-4">Assigned Role</th>
-                <th className="py-3 px-4">Status</th>
-                <th className="py-3 px-4">Registered Date</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {staffList.map((user) => (
-                <tr key={user.id} className="hover:bg-gray-50/70 transition-colors">
-                  <td className="py-3 px-4 font-bold text-gray-900">{user.name}</td>
-                  <td className="py-3 px-4 text-gray-600">{user.email}</td>
-                  <td className="py-3 px-4">
-                    <Badge variant={user.role === 'Engineer' ? 'info' : user.role === 'Owner' || user.role === 'Admin' ? 'warning' : 'primary'}>
-                      {user.role}
-                    </Badge>
-                  </td>
-                  <td className="py-3 px-4">
-                    <span className="inline-flex items-center gap-1 text-emerald-600 font-semibold">
-                      <CheckCircle className="w-3.5 h-3.5" /> {user.status}
-                    </span>
-                  </td>
-                  <td className="py-3 px-4 text-gray-400">{user.date}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Modal for Creating Staff Account */}
-      <Modal isOpen={showAddModal} onClose={() => setShowAddModal(false)} title="Create New Staff Account" maxWidth="max-w-md">
-        <form onSubmit={handleCreateStaff} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Full Name</label>
-            <input
-              type="text"
-              required
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              placeholder="e.g. Ramesh Kumar"
-              className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Email Address</label>
-            <input
-              type="email"
-              required
-              value={newEmail}
-              onChange={(e) => setNewEmail(e.target.value)}
-              placeholder="ramesh@hitechair.in"
-              className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Temporary Password</label>
-            <input
-              type="password"
-              required
-              minLength={6}
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="••••••••"
-              className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A]"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">Assign Role</label>
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setNewRole('Sales')}
-                className={`py-2.5 px-3 text-xs font-bold rounded-xl border transition-all ${newRole === 'Sales' ? 'bg-[#3B318A] text-white border-[#3B318A] shadow-xs' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
-              >
-                Sales Representative
-              </button>
-              <button
-                type="button"
-                onClick={() => setNewRole('Engineer')}
-                className={`py-2.5 px-3 text-xs font-bold rounded-xl border transition-all ${newRole === 'Engineer' ? 'bg-teal-600 text-white border-teal-600 shadow-xs' : 'bg-gray-50 text-gray-700 border-gray-200 hover:bg-gray-100'}`}
-              >
-                Field Engineer
-              </button>
-            </div>
-          </div>
-
-          <div className="flex gap-2 pt-3 border-t border-gray-100">
-            <Button type="button" variant="outline" onClick={() => setShowAddModal(false)} className="w-1/2">
-              Cancel
-            </Button>
-            <Button type="submit" disabled={submitting} variant="primary" className="w-1/2 bg-[#3B318A]">
-              {submitting ? 'Creating...' : 'Create Staff Account'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   );
 };
-

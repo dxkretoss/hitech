@@ -64,7 +64,19 @@ export const DashboardPage = () => {
 
   const todayStr = new Date().toISOString().split('T')[0];
 
+  const currentUserName = (currentUser?.name || '').toLowerCase();
+  const currentUserId = currentUser?.id;
+
   // --- SALES SPECIFIC DATA ---
+  const mySalesItems = customers.filter(c => {
+    if (!currentUserName && !currentUserId) return false;
+    const sName = (c.salesPersonName || '').toLowerCase();
+    return (
+      c.salesPersonId === currentUserId ||
+      (sName && (sName.includes(currentUserName) || currentUserName.includes(sName)))
+    );
+  });
+
   const activeLeads = leads.filter(l => l.status !== 'Won' && l.status !== 'Lost');
   const todaysFollowups = leads.filter(l => l.status !== 'Won' && l.status !== 'Lost');
   const wonDeals = leads.filter(l => l.status === 'Won').length;
@@ -73,16 +85,22 @@ export const DashboardPage = () => {
   const futureReqCount = futureOpps.length + leads.filter(l => l.status === 'Future Requirement').length;
 
   // --- ENGINEER SPECIFIC DATA ---
-  // Filter services assigned to current engineer or all services if engineer
-  const myServices = services.filter(s => {
-    if (!currentUser?.name) return true;
+  // Filter services strictly assigned to current engineer (no fallback to all services)
+  const engineerServiceList = services.filter(s => {
+    if (!currentUserName) return false;
+    const assigned = (s.assignedEngineer || '').toLowerCase();
+    return assigned && (assigned.includes(currentUserName) || currentUserName.includes(assigned));
+  });
+
+  const myEngineerSoldItems = customers.filter(c => {
+    if (!currentUserName && !currentUserId) return false;
+    const sName = (c.salesPersonName || '').toLowerCase();
     return (
-      !s.assignedEngineer ||
-      s.assignedEngineer.toLowerCase().includes(currentUser.name.toLowerCase()) ||
-      currentUser.name.toLowerCase().includes(s.assignedEngineer.toLowerCase())
+      c.salesPersonId === currentUserId ||
+      (sName && (sName.includes(currentUserName) || currentUserName.includes(sName)))
     );
   });
-  const engineerServiceList = myServices.length > 0 ? myServices : services;
+
   const upcomingServices = engineerServiceList.filter(s => s.status === 'Upcoming');
   const todaysSiteVisits = engineerServiceList.filter(s => s.scheduledDate === todayStr || s.status === 'Pending' || s.status === 'In Progress');
   const completedServices = engineerServiceList.filter(s => s.status === 'Completed');
@@ -261,26 +279,31 @@ export const DashboardPage = () => {
             </Card>
           </div>
 
-          {/* Right Column (1 col): Installed Customer Machine Base & Protocol */}
+          {/* Right Column (1 col): Service Overview & Quality Protocol */}
           <div className="space-y-6">
+
             {/* Recent Service Assignments */}
             <Card className="p-5 space-y-3">
               <div className="flex items-center justify-between border-b pb-2 border-gray-100">
                 <h3 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
                   <Wrench className="w-3.5 h-3.5 text-[#3B318A]" />
-                  Service Orders Overview
+                  My Service Work Orders
                 </h3>
                 <span className="text-[10px] text-gray-400 font-bold">{engineerServiceList.length} Tasks</span>
               </div>
 
               <div className="space-y-2">
-                {engineerServiceList.slice(0, 5).map((s) => (
-                  <div key={s.id} className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 text-xs">
-                    <p className="font-bold text-gray-900">{s.customerName} <span className="text-gray-400 font-normal">({s.company})</span></p>
-                    <p className="text-[11px] text-teal-700 font-semibold">{s.serviceName}</p>
-                    <p className="text-[10px] text-gray-400 mt-0.5">Date: {s.scheduledDate}</p>
-                  </div>
-                ))}
+                {engineerServiceList.length === 0 ? (
+                  <p className="text-xs text-gray-400 py-3 text-center">No service tasks currently assigned.</p>
+                ) : (
+                  engineerServiceList.slice(0, 5).map((s) => (
+                    <div key={s.id} className="p-2.5 rounded-lg bg-gray-50 border border-gray-100 text-xs">
+                      <p className="font-bold text-gray-900">{s.customerName} <span className="text-gray-400 font-normal">({s.company})</span></p>
+                      <p className="text-[11px] text-teal-700 font-semibold">{s.serviceName}</p>
+                      <p className="text-[10px] text-gray-400 mt-0.5">Date: {s.scheduledDate}</p>
+                    </div>
+                  ))
+                )}
               </div>
             </Card>
 
@@ -480,6 +503,36 @@ export const DashboardPage = () => {
 
         {/* Right Column (1 col): Recent Converted Accounts & Sales Tips */}
         <div className="space-y-6">
+          {/* My Sold Items & Machine Deals */}
+          <Card className="p-5 space-y-3">
+            <div className="flex items-center justify-between border-b pb-2 border-gray-100">
+              <h3 className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                <ShoppingBag className="w-3.5 h-3.5 text-emerald-600" />
+                My Sold Items & Machines
+              </h3>
+              <Badge variant="success">{mySalesItems.length} Sold</Badge>
+            </div>
+
+            <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
+              {mySalesItems.length === 0 ? (
+                <p className="text-xs text-gray-400 py-3 text-center">No sales records registered yet.</p>
+              ) : (
+                mySalesItems.map((sale) => (
+                  <div key={sale.id} className="p-2.5 rounded-xl bg-gray-50 border border-gray-100 text-xs space-y-1">
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-gray-900">{sale.company || sale.customerName}</span>
+                      <span className="text-[10px] bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded font-bold">
+                        {sale.branch}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-[#3B318A] font-semibold">{sale.purchasedProduct}</p>
+                    <p className="text-[10px] text-gray-400">{sale.installationDate || 'Recent'} • Qty: {sale.quantity || 1}</p>
+                  </div>
+                ))
+              )}
+            </div>
+          </Card>
+
           {/* Recent Won Deals */}
           <Card className="p-5 space-y-3">
             <div className="flex items-center justify-between border-b pb-2 border-gray-100">

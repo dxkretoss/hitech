@@ -3,13 +3,19 @@ import { Modal } from '../ui/Modal.jsx';
 import { Button } from '../ui/Button.jsx';
 import { Input, Textarea, CustomSelect } from '../ui/Input.jsx';
 import { db } from '../../services/db.js';
-import { Calendar, Wrench, User } from 'lucide-react';
+import { Calendar, Wrench, User, Building2, Cpu } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const ScheduleServiceModal = ({ isOpen, onClose, onServiceCreated }) => {
   const [customers, setCustomers] = useState([]);
   const [engineers, setEngineers] = useState([]);
-  const [selectedCustomerId, setSelectedCustomerId] = useState('');
+  
+  // Direct text input fields
+  const [customerId, setCustomerId] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [company, setCompany] = useState('');
+  const [product, setProduct] = useState('');
+  
   const [serviceType, setServiceType] = useState('Routine Preventative Maintenance');
   const [scheduledDate, setScheduledDate] = useState(new Date().toISOString().split('T')[0]);
   const [assignedEngineer, setAssignedEngineer] = useState('Sanjay Patel');
@@ -23,9 +29,6 @@ export const ScheduleServiceModal = ({ isOpen, onClose, onServiceCreated }) => {
         db.getProfiles()
       ]);
       setCustomers(custs || []);
-      if (custs && custs.length > 0 && !selectedCustomerId) {
-        setSelectedCustomerId(custs[0].id);
-      }
       const engs = (profs || []).filter(p => p.role === 'Engineer');
       setEngineers(engs);
       if (engs.length > 0) {
@@ -34,14 +37,43 @@ export const ScheduleServiceModal = ({ isOpen, onClose, onServiceCreated }) => {
     };
     if (isOpen) {
       loadInit();
+      // Reset fields on open
+      setCustomerId('');
+      setCustomerName('');
+      setCompany('');
+      setProduct('');
+      setNotes('');
+      setScheduledDate(new Date().toISOString().split('T')[0]);
     }
   }, [isOpen]);
 
+  const handleSelectCustomer = (e) => {
+    const selectedId = e.target.value;
+    setCustomerId(selectedId);
+    if (!selectedId) {
+      return;
+    }
+    const found = customers.find(c => c.id === selectedId);
+    if (found) {
+      setCustomerName(found.customerName || '');
+      setCompany(found.company || '');
+      setProduct(found.purchasedProduct || '');
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const customer = customers.find(c => c.id === selectedCustomerId);
-    if (!customer) {
-      toast.error('Please select a valid customer.');
+
+    if (!customerName.trim()) {
+      toast.error('Please enter customer / contact name.');
+      return;
+    }
+    if (!company.trim()) {
+      toast.error('Please enter company / factory name.');
+      return;
+    }
+    if (!product.trim()) {
+      toast.error('Please enter machine / product model.');
       return;
     }
 
@@ -54,16 +86,16 @@ export const ScheduleServiceModal = ({ isOpen, onClose, onServiceCreated }) => {
     setSubmitting(true);
     try {
       await db.addService({
-        customerId: customer.id,
-        customerName: customer.customerName,
-        company: customer.company,
-        product: customer.purchasedProduct,
+        customerId: customerId || `CUST-${Date.now().toString().slice(-4)}`,
+        customerName: customerName.trim(),
+        company: company.trim(),
+        product: product.trim(),
         serviceName: finalServiceName,
         scheduledDate,
         assignedEngineer,
         notes
       });
-      toast.success(`Service scheduled for ${customer.customerName} on ${scheduledDate}`);
+      toast.success(`Service scheduled for ${customerName} (${company}) on ${scheduledDate}`);
       onServiceCreated();
       onClose();
     } catch (err) {
@@ -73,35 +105,74 @@ export const ScheduleServiceModal = ({ isOpen, onClose, onServiceCreated }) => {
     }
   };
 
-  const selectedCustomer = customers.find(c => c.id === selectedCustomerId);
-
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Schedule Field Engineer Service" maxWidth="max-w-xl">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="space-y-1.5">
-          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
-            <span>Select Customer / Machine</span> <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={selectedCustomerId}
-            onChange={(e) => setSelectedCustomerId(e.target.value)}
-            className="w-full h-[38px] px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] font-semibold text-gray-800"
-            required
-          >
-            {customers.map(c => (
-              <option key={c.id} value={c.id}>
-                {c.customerName} ({c.company}) — {c.purchasedProduct}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        {selectedCustomer && (
-          <div className="p-3 bg-indigo-50/60 rounded-xl border border-indigo-100 text-xs text-[#3B318A] flex justify-between items-center">
-            <span>Equipment: <strong>{selectedCustomer.purchasedProduct}</strong></span>
-            <span>Installed: <strong>{selectedCustomer.installationDate}</strong></span>
+        {/* Optional Quick Autofill from Registered Customers */}
+        {customers.length > 0 && (
+          <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 space-y-1">
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wide">
+              Quick Autofill from Existing Customer (Optional)
+            </label>
+            <select
+              value={customerId}
+              onChange={handleSelectCustomer}
+              className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded-lg outline-none focus:ring-2 focus:ring-[#3B318A] bg-white font-medium text-gray-800"
+            >
+              <option value="">-- Type custom details below or choose customer --</option>
+              {customers.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.customerName} ({c.company}) — {c.purchasedProduct}
+                </option>
+              ))}
+            </select>
           </div>
         )}
+
+        {/* Text Input Fields for Customer, Company, and Machine */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">
+              Customer / Contact Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              placeholder="e.g. Dharmesh Joshi"
+              className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] text-gray-900 bg-white"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">
+              Company / Factory Name <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="text"
+              required
+              value={company}
+              onChange={(e) => setCompany(e.target.value)}
+              placeholder="e.g. Surat Diamond Craft"
+              className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] text-gray-900 bg-white"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide mb-1">
+            Machine / Equipment Model <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            required
+            value={product}
+            onChange={(e) => setProduct(e.target.value)}
+            placeholder="e.g. 50 HP Screw Air Compressor"
+            className="w-full px-3.5 py-2 text-sm border border-gray-300 rounded-xl outline-none focus:ring-2 focus:ring-[#3B318A] text-gray-900 bg-white"
+          />
+        </div>
 
         <CustomSelect
           label="Service Title / Purpose"

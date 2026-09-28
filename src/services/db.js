@@ -307,16 +307,26 @@ class SupabaseDatabase {
   async addCustomerSale(saleData, currentUser = null) {
     const custId = `CUST-${Date.now().toString().slice(-4)}`;
     const installDate = saleData.installationDate || new Date().toISOString().split('T')[0];
-    const salesPersonName = saleData.salesPersonName || currentUser?.name || 'Vikram Mehta';
+    const salesPersonName = saleData.salesPersonName || currentUser?.name || 'Ravi Patel';
     const salesPersonId = saleData.salesPersonId || currentUser?.id || 'S-101';
     const engineer = saleData.assignedEngineer || 'Sanjay Patel';
+    const branch = saleData.dispatchBranch || saleData.branch || currentUser?.branch || 'Surat';
+    const category = saleData.category || (saleData.purchasedProduct?.toLowerCase().includes('filter') || saleData.purchasedProduct?.toLowerCase().includes('oil') || saleData.purchasedProduct?.toLowerCase().includes('spare') ? 'Spare Part' : 'Machine');
+    const quantity = Number(saleData.quantity) || 1;
+    const unitPrice = Number(saleData.unitPrice) || 0;
+    const serialNumber = saleData.serialNumber || '';
 
     const newCust = {
       id: custId,
       customer_name: saleData.customerName,
       company: saleData.company,
       phone: saleData.phone,
+      branch: branch,
+      category: category,
       purchased_product: saleData.purchasedProduct,
+      quantity: quantity,
+      unit_price: unitPrice,
+      serial_number: serialNumber,
       installation_date: installDate,
       assigned_engineer: engineer,
       address: saleData.address || `${saleData.company || saleData.customerName} Site, Gujarat`,
@@ -337,7 +347,12 @@ class SupabaseDatabase {
       customerName: saleData.customerName,
       company: saleData.company,
       phone: saleData.phone,
+      branch: branch,
+      category: category,
       purchasedProduct: saleData.purchasedProduct,
+      quantity: quantity,
+      unitPrice: unitPrice,
+      serialNumber: serialNumber,
       installationDate: installDate,
       assignedEngineer: engineer,
       address: newCust.address,
@@ -348,8 +363,10 @@ class SupabaseDatabase {
     const currentCusts = await this.getCustomers();
     this.saveLocal('hitech_v2_customers', [formattedCust, ...currentCusts]);
 
-    // Create Initial Service for Field Engineer
-    await this.generateInitialServiceForCustomer(formattedCust, saleData.nextServiceDate);
+    // Create Initial Service for Field Engineer (for machines)
+    if (category !== 'Spare Part' && engineer !== 'Direct Spare Part Sale') {
+      await this.generateInitialServiceForCustomer(formattedCust, saleData.nextServiceDate);
+    }
 
     return formattedCust;
   }
@@ -531,7 +548,11 @@ class SupabaseDatabase {
             company: c.company,
             phone: c.phone,
             branch: c.branch || 'Surat',
+            category: c.category || (c.purchased_product?.toLowerCase().includes('filter') || c.purchased_product?.toLowerCase().includes('oil') || c.purchased_product?.toLowerCase().includes('spare') || c.assigned_engineer === 'Direct Spare Part Sale' ? 'Spare Part' : 'Machine'),
             purchasedProduct: c.purchased_product,
+            quantity: Number(c.quantity) || 1,
+            unitPrice: Number(c.unit_price) || 0,
+            serialNumber: c.serial_number || '',
             installationDate: c.installation_date,
             assignedEngineer: c.assigned_engineer,
             address: c.address,
@@ -543,7 +564,85 @@ class SupabaseDatabase {
         console.warn('Supabase fetch customers error:', e);
       }
     }
-    return this.getLocal('hitech_v2_customers', []);
+
+    const fallbackCustomers = [
+      {
+        id: 'CUST-801',
+        customerName: 'Pravin Solanki',
+        company: 'Surat Silk Prints & Fabrics',
+        phone: '+91 98251 12345',
+        branch: 'Surat',
+        category: 'Machine',
+        purchasedProduct: 'HAT 37 - 50 HP (37 kW) Rotary Screw Compressor',
+        installationDate: '2026-08-10',
+        assignedEngineer: 'Sanjay Patel',
+        address: 'Plot 42, GIDC Sachin, Surat',
+        salesPersonId: 'S-101',
+        salesPersonName: 'Vikram Mehta'
+      },
+      {
+        id: 'CUST-802',
+        customerName: 'Haresh Patel',
+        company: 'Morbi Ceramic Glazes Ltd',
+        phone: '+91 98252 23456',
+        branch: 'Morbi',
+        category: 'Machine',
+        purchasedProduct: 'HAT 75 - 100 HP (75 kW) Rotary Screw Compressor',
+        installationDate: '2026-08-15',
+        assignedEngineer: 'Rameshwar Joshi',
+        address: '8-A National Highway, Morbi',
+        salesPersonId: 'S-101',
+        salesPersonName: 'Vikram Mehta'
+      },
+      {
+        id: 'CUST-803',
+        customerName: 'Dharmesh Vora',
+        company: 'Rajkot Precision Forgings',
+        phone: '+91 98253 34567',
+        branch: 'Rajkot',
+        category: 'Machine',
+        purchasedProduct: 'HAT 22 - 30 HP (22 kW) Rotary Screw Compressor',
+        installationDate: '2026-08-20',
+        assignedEngineer: 'Ketan Solanki',
+        address: 'Aji GIDC Industrial Area, Rajkot',
+        salesPersonId: 'S-102',
+        salesPersonName: 'Anita Sharma'
+      },
+      {
+        id: 'CUST-804',
+        customerName: 'Mahesh Balar',
+        company: 'Diamond Laser Cutting Hub',
+        phone: '+91 98254 45678',
+        branch: 'Surat',
+        category: 'Spare Part',
+        purchasedProduct: 'Air Filter Cartridge (HAT 4 - HAT 11) (2 Units)',
+        quantity: 2,
+        unitPrice: 1800,
+        installationDate: '2026-08-22',
+        assignedEngineer: 'Direct Spare Part Sale',
+        address: 'Katargam Diamond Zone, Surat',
+        salesPersonId: 'S-101',
+        salesPersonName: 'Vikram Mehta'
+      },
+      {
+        id: 'CUST-805',
+        customerName: 'Kishore Jadeja',
+        company: 'Rotary Valves & Engineering',
+        phone: '+91 98255 56789',
+        branch: 'Morbi',
+        category: 'Spare Part',
+        purchasedProduct: 'Synthetic Compressor Lubricant (ISO VG 46 - 20L) (1 Pail)',
+        quantity: 1,
+        unitPrice: 7800,
+        installationDate: '2026-08-25',
+        assignedEngineer: 'Direct Spare Part Sale',
+        address: 'Wankaner Road, Morbi',
+        salesPersonId: 'S-101',
+        salesPersonName: 'Vikram Mehta'
+      }
+    ];
+
+    return this.getLocal('hitech_v2_customers', fallbackCustomers);
   }
 
   async getCustomerById(id) {
@@ -748,6 +847,40 @@ class SupabaseDatabase {
       updatedList = [newNextService, ...updatedList];
     }
 
+    // Deduct replaced spare parts from Branch Warehouse Stock
+    const serviceBranch = service.branch || 'Surat';
+    const allStock = await this.getStockItems();
+
+    if (report.usedStockParts && report.usedStockParts.length > 0) {
+      for (const p of report.usedStockParts) {
+        const qtyToDeduct = Number(p.usedQty) || 1;
+        await this.adjustStockQuantity(p.id, {
+          adjustmentType: 'DEDUCT',
+          quantity: qtyToDeduct,
+          reason: 'Service Maintenance Part Replacement',
+          notes: `Replaced in ${service.serviceName} (${service.customerName}) by ${assignedEngineer}`
+        });
+      }
+    } else if (partsReplaced) {
+      const replacedLower = partsReplaced.toLowerCase();
+      const matchingParts = (allStock || []).filter(
+        s => s.category === 'Spare Part' &&
+        s.branch === serviceBranch &&
+        (replacedLower.includes(s.itemName.toLowerCase()) || (s.partNumber && replacedLower.includes(s.partNumber.toLowerCase())))
+      );
+
+      for (const matched of matchingParts) {
+        if (Number(matched.quantity) > 0) {
+          await this.adjustStockQuantity(matched.id, {
+            adjustmentType: 'DEDUCT',
+            quantity: 1,
+            reason: 'Service Maintenance Part Replacement',
+            notes: `Replaced in ${service.serviceName} (${service.customerName}) by ${assignedEngineer}`
+          });
+        }
+      }
+    }
+
     this.saveLocal('hitech_v2_services', updatedList);
     return updatedService;
   }
@@ -823,6 +956,8 @@ class SupabaseDatabase {
             name: p.name || p.email.split('@')[0],
             email: p.email,
             role: p.role || 'Sales',
+            branch: p.branch || 'Surat',
+            canViewStock: p.can_view_stock === true || p.canViewStock === true,
             status: 'Active',
             date: p.created_at ? p.created_at.split('T')[0] : new Date().toISOString().split('T')[0]
           }));
@@ -831,12 +966,80 @@ class SupabaseDatabase {
         console.warn('Supabase fetch profiles error:', e);
       }
     }
-    return [
-      { id: 'S-101', name: 'Vikram Mehta', email: 'sales@hitechair.in', role: 'Sales', status: 'Active', date: '2026-08-01' },
-      { id: 'S-102', name: 'Anita Sharma', email: 'anita.sales@hitechair.in', role: 'Sales', status: 'Active', date: '2026-08-02' },
-      { id: 'E-201', name: 'Sanjay Patel', email: 'sanjay.engineer@hitechair.in', role: 'Engineer', status: 'Active', date: '2026-08-03' },
-      { id: 'A-301', name: 'Hi-Tech Super Administrator', email: 'admin@hitechair.in', role: 'Owner', status: 'Active', date: '2026-07-15' }
+    const local = this.getLocal('hitech_v2_profiles', null);
+    if (local && local.length > 0) {
+      return local;
+    }
+    const defaultProfiles = [
+      { id: 'S-101', name: 'Vikram Mehta', email: 'sales@hitechair.in', role: 'Sales', branch: 'Surat', canViewStock: false, status: 'Active', date: '2026-08-01' },
+      { id: 'S-102', name: 'Anita Sharma', email: 'anita.sales@hitechair.in', role: 'Sales', branch: 'Surat', canViewStock: false, status: 'Active', date: '2026-08-02' },
+      { id: 'E-201', name: 'Sanjay Patel', email: 'sanjay.engineer@hitechair.in', role: 'Engineer', branch: 'Surat', canViewStock: true, status: 'Active', date: '2026-08-03' },
+      { id: 'A-301', name: 'Hi-Tech Super Administrator', email: 'admin@hitechair.in', role: 'Owner', branch: 'Surat', canViewStock: true, status: 'Active', date: '2026-07-15' }
     ];
+    this.saveLocal('hitech_v2_profiles', defaultProfiles);
+    return defaultProfiles;
+  }
+
+  async updateProfileStockAccess(profileId, canViewStock) {
+    if (isSupabaseConfigured()) {
+      try {
+        // 1. Try updating by Supabase UUID/ID
+        const { data, error } = await supabase
+          .from('profiles')
+          .update({ can_view_stock: canViewStock })
+          .eq('id', profileId)
+          .select();
+
+        if (error) {
+          console.warn('Supabase update profile by id returned error, trying email fallback:', error);
+          const currentLocal = this.getLocal('hitech_v2_profiles', []) || [];
+          const target = currentLocal.find(p => p.id === profileId);
+          if (target && target.email) {
+            const { error: emailErr } = await supabase
+              .from('profiles')
+              .update({ can_view_stock: canViewStock })
+              .eq('email', target.email);
+            if (emailErr) console.warn('Supabase update by email error:', emailErr);
+          }
+        }
+      } catch (e) {
+        console.warn('Supabase update profile stock access error:', e);
+      }
+    }
+
+    // 2. Always immediately update and persist local storage
+    const currentLocal = this.getLocal('hitech_v2_profiles', []) || [];
+    let updated = [];
+    if (currentLocal.length > 0) {
+      updated = currentLocal.map(p => 
+        (p.id === profileId || (p.email && p.email === profileId)) 
+          ? { ...p, canViewStock, can_view_stock: canViewStock } 
+          : p
+      );
+    } else {
+      const defaultList = await this.getProfiles();
+      updated = defaultList.map(p => 
+        (p.id === profileId || (p.email && p.email === profileId)) 
+          ? { ...p, canViewStock, can_view_stock: canViewStock } 
+          : p
+      );
+    }
+    this.saveLocal('hitech_v2_profiles', updated);
+
+    // 3. Also update logged in user in localStorage if matching
+    try {
+      const currentUser = JSON.parse(localStorage.getItem('hitech_v2_user') || '{}');
+      const targetProfile = updated.find(p => p.id === profileId || p.email === profileId);
+      if (currentUser && (currentUser.id === profileId || (targetProfile && currentUser.email === targetProfile.email))) {
+        currentUser.canViewStock = canViewStock;
+        currentUser.can_view_stock = canViewStock;
+        localStorage.setItem('hitech_v2_user', JSON.stringify(currentUser));
+      }
+    } catch (e) {
+      console.error('Error updating current session user stock access:', e);
+    }
+
+    return updated;
   }
 
   // --- ADMIN ANALYTICS & SALES PERSON ATTRIBUTION BREAKDOWN ---
@@ -949,254 +1152,405 @@ class SupabaseDatabase {
     }
 
     const fallbackStock = [
-      // --- SURAT BRANCH ---
+      // =========================================================================
+      // OFFICIAL HI-TECH ROTARY SCREW COMPRESSORS (Single Stage - PDF Page 4)
+      // =========================================================================
       {
-        id: 'STK-SRT-01',
-        itemName: '50 HP Screw Air Compressor (Direct Drive)',
+        id: 'STK-HAT-04-SRT',
+        itemName: 'HAT 4 - 5 HP (4 kW) Rotary Screw Compressor',
         category: 'Machine',
-        partNumber: 'HT-CMP-50HP-DD',
+        partNumber: 'HAT 4',
         branch: 'Surat',
         quantity: 4,
         unit: 'Units',
         minAlertLevel: 2,
-        annualConsumption: 24,
-        unitPrice: 420000,
-        compatibleModels: 'Standard 50 HP Industrial Series',
-        lastRestockedDate: '2026-08-20',
-        notes: 'High demand textile & diamond processing units'
+        annualConsumption: 20,
+        unitPrice: 185000,
+        compatibleModels: 'HAT 4 (5 HP / 4 kW) Single Stage',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Power: 4 kW (5 HP) | FAD: 23/20/18 CFM @ 7/8/10 BAR | Noise: 57 dB(A) | Dim: 85x62x98 cm | Wt: 210 kg | Outlet: G 1/2"'
       },
       {
-        id: 'STK-SRT-02',
-        itemName: '75 HP VFD Screw Compressor (Energy Saver)',
+        id: 'STK-HAT-07-SRT',
+        itemName: 'HAT 7 - 10 HP (7.5 kW) Rotary Screw Compressor',
         category: 'Machine',
-        partNumber: 'HT-CMP-75HP-VFD',
+        partNumber: 'HAT 7',
         branch: 'Surat',
-        quantity: 3,
+        quantity: 5,
         unit: 'Units',
         minAlertLevel: 2,
-        annualConsumption: 18,
-        unitPrice: 650000,
-        compatibleModels: 'VFD Series Plant Installations',
-        lastRestockedDate: '2026-08-15',
-        notes: 'Variable speed drive for heavy power saving'
+        annualConsumption: 25,
+        unitPrice: 245000,
+        compatibleModels: 'HAT 7 (10 HP / 7.5 kW) Single Stage',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Power: 7.5 kW (10 HP) | FAD: 43/39/32 CFM @ 7/8/10 BAR | Noise: 61 dB(A) | Dim: 95x67x103 cm | Wt: 250 kg | Outlet: G 1/2"'
       },
       {
-        id: 'STK-SRT-03',
-        itemName: 'Air Filter Cartridge 50 HP (Nano Fiber)',
-        category: 'Spare Part',
-        partNumber: 'HT-AF-50HP-NF',
-        branch: 'Surat',
-        quantity: 28,
-        unit: 'Units',
-        minAlertLevel: 10,
-        annualConsumption: 140,
-        unitPrice: 2800,
-        compatibleModels: '50 HP & 60 HP Screw Compressors',
-        lastRestockedDate: '2026-08-25',
-        notes: 'Fast moving consumable, replaced every 2000 hours'
-      },
-      {
-        id: 'STK-SRT-04',
-        itemName: 'Spin-On Oil Filter 50/75 HP',
-        category: 'Spare Part',
-        partNumber: 'HT-OF-75HP-SO',
-        branch: 'Surat',
-        quantity: 22,
-        unit: 'Units',
-        minAlertLevel: 8,
-        annualConsumption: 120,
-        unitPrice: 1950,
-        compatibleModels: '50 HP, 75 HP, 100 HP Models',
-        lastRestockedDate: '2026-08-22',
-        notes: 'Routine service replacement item'
-      },
-      {
-        id: 'STK-SRT-05',
-        itemName: 'Synthetic Compressor Lubricant (ISO VG 46 - 20L)',
-        category: 'Spare Part',
-        partNumber: 'HT-OIL-VG46-20L',
-        branch: 'Surat',
-        quantity: 15,
-        unit: 'Pails (20L)',
-        minAlertLevel: 6,
-        annualConsumption: 95,
-        unitPrice: 7800,
-        compatibleModels: 'All Hi-Tech Rotary Screw Series',
-        lastRestockedDate: '2026-08-26',
-        notes: '8000-Hour long life synthetic oil'
-      },
-      {
-        id: 'STK-SRT-06',
-        itemName: 'Air-Oil Separator Element 75 HP',
-        category: 'Spare Part',
-        partNumber: 'HT-SEP-75HP-FL',
-        branch: 'Surat',
-        quantity: 6,
-        unit: 'Units',
-        minAlertLevel: 4,
-        annualConsumption: 36,
-        unitPrice: 8500,
-        compatibleModels: '75 HP VFD & Direct Drive Series',
-        lastRestockedDate: '2026-08-10',
-        notes: 'Residual oil content < 3 ppm'
-      },
-
-      // --- MORBI BRANCH ---
-      {
-        id: 'STK-MRB-01',
-        itemName: '100 HP Heavy-Duty Screw Air Compressor',
+        id: 'STK-HAT-11-SRT',
+        itemName: 'HAT 11 - 15 HP (11 kW) Rotary Screw Compressor',
         category: 'Machine',
-        partNumber: 'HT-CMP-100HP-HD',
-        branch: 'Morbi',
-        quantity: 2,
-        unit: 'Units',
-        minAlertLevel: 1,
-        annualConsumption: 16,
-        unitPrice: 890000,
-        compatibleModels: 'Ceramic & Heavy Vitrified Tile Plants',
-        lastRestockedDate: '2026-08-18',
-        notes: 'Ceramic cluster standard heavy unit'
-      },
-      {
-        id: 'STK-MRB-02',
-        itemName: '10-Ton Industrial Water Chiller',
-        category: 'Machine',
-        partNumber: 'HT-CHL-10TON',
-        branch: 'Morbi',
-        quantity: 3,
-        unit: 'Units',
-        minAlertLevel: 1,
-        annualConsumption: 12,
-        unitPrice: 380000,
-        compatibleModels: 'Ceramic Roller & Glaze Line Cooling',
-        lastRestockedDate: '2026-08-12',
-        notes: 'Heavy duty scroll compressor chiller'
-      },
-      {
-        id: 'STK-MRB-03',
-        itemName: 'Air Filter Cartridge 100 HP Heavy Dust',
-        category: 'Spare Part',
-        partNumber: 'HT-AF-100HP-HD',
-        branch: 'Morbi',
-        quantity: 35,
-        unit: 'Units',
-        minAlertLevel: 12,
-        annualConsumption: 190,
-        unitPrice: 4200,
-        compatibleModels: '100 HP & 120 HP Screw Compressors',
-        lastRestockedDate: '2026-08-28',
-        notes: 'Critical high-dust ceramic zone intake filter'
-      },
-      {
-        id: 'STK-MRB-04',
-        itemName: 'Refrigerated Air Dryer 150 CFM',
-        category: 'Machine',
-        partNumber: 'HT-DRY-150CFM',
-        branch: 'Morbi',
+        partNumber: 'HAT 11',
+        branch: 'Surat',
         quantity: 4,
         unit: 'Units',
         minAlertLevel: 2,
         annualConsumption: 22,
-        unitPrice: 145000,
-        compatibleModels: 'Moisture removal for ceramic glazing lines',
-        lastRestockedDate: '2026-08-14',
-        notes: '+3°C pressure dew point dryer'
+        unitPrice: 295000,
+        compatibleModels: 'HAT 11 (15 HP / 11 kW) Single Stage',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Power: 11 kW (15 HP) | FAD: 62/54/47 CFM @ 7/8/10 BAR | Noise: 63 dB(A) | Dim: 115x82x103 cm | Wt: 400 kg | Outlet: G 3/4"'
       },
       {
-        id: 'STK-MRB-05',
-        itemName: 'Drive Belt Set (SPB 2240 - High Torque)',
-        category: 'Spare Part',
-        partNumber: 'HT-BLT-SPB2240',
-        branch: 'Morbi',
-        quantity: 18,
-        unit: 'Sets',
-        minAlertLevel: 6,
-        annualConsumption: 75,
-        unitPrice: 3200,
-        compatibleModels: '50 HP & 75 HP Belt Driven Compressors',
-        lastRestockedDate: '2026-08-19',
-        notes: 'Oil & heat resistant cogged raw edge belts'
-      },
-
-      // --- RAJKOT BRANCH ---
-      {
-        id: 'STK-RJK-01',
-        itemName: '30 HP Compact Rotary Screw Compressor',
+        id: 'STK-HAT-15-MRB',
+        itemName: 'HAT 15 - 20 HP (15 kW) Rotary Screw Compressor',
         category: 'Machine',
-        partNumber: 'HT-CMP-30HP-CP',
+        partNumber: 'HAT 15',
+        branch: 'Morbi',
+        quantity: 4,
+        unit: 'Units',
+        minAlertLevel: 2,
+        annualConsumption: 18,
+        unitPrice: 340000,
+        compatibleModels: 'HAT 15 (20 HP / 15 kW) Single Stage',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Power: 15 kW (20 HP) | FAD: 90/83/77 CFM @ 7/8/10 BAR | Noise: 65 dB(A) | Dim: 115x82x103 cm | Wt: 400 kg | Outlet: G 3/4"'
+      },
+      {
+        id: 'STK-HAT-18-MRB',
+        itemName: 'HAT 18 - 25 HP (18.5 kW) Rotary Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HAT 18',
+        branch: 'Morbi',
+        quantity: 3,
+        unit: 'Units',
+        minAlertLevel: 2,
+        annualConsumption: 20,
+        unitPrice: 395000,
+        compatibleModels: 'HAT 18 (25 HP / 18.5 kW) Single Stage',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Power: 18.5 kW (25 HP) | FAD: 119/108/97 CFM @ 7/8/10 BAR | Noise: 67 dB(A) | Dim: 135x92x123 cm | Wt: 550 kg | Outlet: G 1"'
+      },
+      {
+        id: 'STK-HAT-22-RJK',
+        itemName: 'HAT 22 - 30 HP (22 kW) Rotary Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HAT 22',
         branch: 'Rajkot',
         quantity: 5,
         unit: 'Units',
         minAlertLevel: 2,
         annualConsumption: 28,
-        unitPrice: 295000,
-        compatibleModels: 'CNC Machine Shops & Forging Units',
-        lastRestockedDate: '2026-08-24',
-        notes: 'Popular in Rajkot engineering and auto-parts hub'
+        unitPrice: 445000,
+        compatibleModels: 'HAT 22 (30 HP / 22 kW) Single Stage',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Power: 22 kW (30 HP) | FAD: 135/129/114 CFM @ 7/8/10 BAR | Noise: 67 dB(A) | Dim: 135x92x123 cm | Wt: 550 kg | Outlet: G 1"'
       },
       {
-        id: 'STK-RJK-02',
-        itemName: 'Refrigerated Air Dryer 100 CFM',
+        id: 'STK-HAT-30-RJK',
+        itemName: 'HAT 30 - 40 HP (30 kW) Rotary Screw Compressor',
         category: 'Machine',
-        partNumber: 'HT-DRY-100CFM',
+        partNumber: 'HAT 30',
         branch: 'Rajkot',
         quantity: 3,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 16,
+        unitPrice: 520000,
+        compatibleModels: 'HAT 30 (40 HP / 30 kW) Single Stage',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Power: 30 kW (40 HP) | FAD: 185/179/163 CFM @ 7/8/10 BAR | Noise: 70 dB(A) | Dim: 150x102x131 cm | Wt: 700 kg | Outlet: G-1 1/2"'
+      },
+      {
+        id: 'STK-HAT-37-SRT',
+        itemName: 'HAT 37 - 50 HP (37 kW) Rotary Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HAT 37',
+        branch: 'Surat',
+        quantity: 4,
+        unit: 'Units',
+        minAlertLevel: 2,
+        annualConsumption: 24,
+        unitPrice: 590000,
+        compatibleModels: 'HAT 37 (50 HP / 37 kW) Single Stage',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Power: 37 kW (50 HP) | FAD: 239/220/203 CFM @ 7/8/10 BAR | Noise: 71 dB(A) | Dim: 150x102x131 cm | Wt: 750 kg | Outlet: G-1 1/2"'
+      },
+      {
+        id: 'STK-HAT-45-MRB',
+        itemName: 'HAT 45 - 60 HP (45 kW) Rotary Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HAT 45',
+        branch: 'Morbi',
+        quantity: 3,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 15,
+        unitPrice: 680000,
+        compatibleModels: 'HAT 45 (60 HP / 45 kW) Single Stage',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Power: 45 kW (60 HP) | FAD: 286/248/225 CFM @ 7/8/10 BAR | Noise: 73 dB(A) | Dim: 150x102x131 cm | Wt: 800 kg | Outlet: G 2"'
+      },
+      {
+        id: 'STK-HAT-55-SRT',
+        itemName: 'HAT 55 - 75 HP (55 kW) Rotary Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HAT 55',
+        branch: 'Surat',
+        quantity: 3,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 14,
+        unitPrice: 820000,
+        compatibleModels: 'HAT 55 (75 HP / 55 kW) Single Stage',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Power: 55 kW (75 HP) | FAD: 365/325/301 CFM @ 7/8/10 BAR | Noise: 76 dB(A) | Dim: 190x126x160 cm | Wt: 1750 kg | Outlet: G 2"'
+      },
+      {
+        id: 'STK-HAT-75-MRB',
+        itemName: 'HAT 75 - 100 HP (75 kW) Rotary Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HAT 75',
+        branch: 'Morbi',
+        quantity: 2,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 12,
+        unitPrice: 980000,
+        compatibleModels: 'HAT 75 (100 HP / 75 kW) Single Stage',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Power: 75 kW (100 HP) | FAD: 475/446/406 CFM @ 7/8/10 BAR | Noise: 77 dB(A) | Dim: 190x126x160 cm | Wt: 1850 kg | Outlet: G 2"'
+      },
+
+      // =========================================================================
+      // TWO-STAGE ROTARY SCREW COMPRESSORS (4 Rotor 2-Stage Airend - PDF Page 5)
+      // =========================================================================
+      {
+        id: 'STK-HAT-55II-SRT',
+        itemName: 'HAT 55 II - 75 HP (55 kW) Two-Stage Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HAT 55 II',
+        branch: 'Surat',
+        quantity: 2,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 8,
+        unitPrice: 960000,
+        compatibleModels: 'Two-Stage Airend (15% More Energy Efficient)',
+        lastRestockedDate: '2026-09-01',
+        notes: '2-Stage Airend 4 Rotor | Power: 55 kW (75 HP) | FAD: 460/435 CFM @ 7/8 BAR | Noise: 70 dB(A) | Dim: 2160x1350x1750 mm | Wt: 2320 kg | Outlet: G 2"'
+      },
+      {
+        id: 'STK-HAT-75II-MRB',
+        itemName: 'HAT 75 II - 100 HP (75 kW) Two-Stage Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HAT 75 II',
+        branch: 'Morbi',
+        quantity: 2,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 8,
+        unitPrice: 1180000,
+        compatibleModels: 'Two-Stage Airend (15% More Energy Efficient)',
+        lastRestockedDate: '2026-09-01',
+        notes: '2-Stage Airend 4 Rotor | Power: 75 kW (100 HP) | FAD: 575/545 CFM @ 7/8 BAR | Noise: 73 dB(A) | Dim: 2160x1350x1750 mm | Wt: 2390 kg | Outlet: G 2"'
+      },
+      {
+        id: 'STK-HAT-90II-MRB',
+        itemName: 'HAT 90 II - 120 HP (90 kW) Two-Stage Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HAT 90 II',
+        branch: 'Morbi',
+        quantity: 2,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 6,
+        unitPrice: 1390000,
+        compatibleModels: 'Two-Stage Airend (Heavy Vitrified Ceramic Hub)',
+        lastRestockedDate: '2026-09-01',
+        notes: '2-Stage Airend 4 Rotor | Power: 90 kW (120 HP) | FAD: 695/644 CFM @ 7/8 BAR | Noise: 77 dB(A) | Dim: 2420x1530x1720 mm | Wt: 3110 kg | Outlet: DN 65'
+      },
+      {
+        id: 'STK-HAT-110II-RJK',
+        itemName: 'HAT 110 II - 150 HP (110 kW) Two-Stage Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HAT 110 II',
+        branch: 'Rajkot',
+        quantity: 1,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 4,
+        unitPrice: 1650000,
+        compatibleModels: 'Two-Stage Airend (Heavy Forging & Foundry)',
+        lastRestockedDate: '2026-09-01',
+        notes: '2-Stage Airend 4 Rotor | Power: 110 kW (150 HP) | FAD: 825/742 CFM @ 7/8 BAR | Noise: 79 dB(A) | Dim: 2650x1600x1850 mm | Wt: 3530 kg | Outlet: DN 80'
+      },
+      {
+        id: 'STK-HAT-132II-RJK',
+        itemName: 'HAT 132 II - 175 HP (132 kW) Two-Stage Screw Compressor',
+        category: 'Machine',
+        partNumber: 'HAT 132 II',
+        branch: 'Rajkot',
+        quantity: 1,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 4,
+        unitPrice: 1890000,
+        compatibleModels: 'Two-Stage Airend (Mega Industrial Plants)',
+        lastRestockedDate: '2026-09-01',
+        notes: '2-Stage Airend 4 Rotor | Power: 132 kW (175 HP) | FAD: 985/888 CFM @ 7/8 BAR | Noise: 83 dB(A) | Dim: 2650x1600x1850 mm | Wt: 3600 kg | Outlet: DN 80'
+      },
+
+      // =========================================================================
+      // AIR TREATMENT & DRYERS (PDF Page 7)
+      // =========================================================================
+      {
+        id: 'STK-RAD-100-SRT',
+        itemName: 'Refrigerated Air Dryer 100 CFM',
+        category: 'Machine',
+        partNumber: 'HT-RAD-100',
+        branch: 'Surat',
+        quantity: 4,
         unit: 'Units',
         minAlertLevel: 2,
         annualConsumption: 20,
         unitPrice: 98000,
-        compatibleModels: '30 HP & 50 HP CNC workshop lines',
-        lastRestockedDate: '2026-08-16',
-        notes: 'Ensures moisture-free pneumatic tooling'
+        compatibleModels: 'HAT 4 to HAT 22 Screw Compressors',
+        lastRestockedDate: '2026-09-01',
+        notes: '+3°C pressure dew point moisture removal dryer'
       },
       {
-        id: 'STK-RJK-03',
-        itemName: 'Air Filter Cartridge 30 HP Compact',
-        category: 'Spare Part',
-        partNumber: 'HT-AF-30HP-CP',
+        id: 'STK-RAD-150-MRB',
+        itemName: 'Refrigerated Air Dryer 150 CFM',
+        category: 'Machine',
+        partNumber: 'HT-RAD-150',
+        branch: 'Morbi',
+        quantity: 3,
+        unit: 'Units',
+        minAlertLevel: 2,
+        annualConsumption: 18,
+        unitPrice: 145000,
+        compatibleModels: 'HAT 30 to HAT 55 Screw Compressors',
+        lastRestockedDate: '2026-09-01',
+        notes: '+3°C pressure dew point moisture removal dryer'
+      },
+      {
+        id: 'STK-ART-1000L-RJK',
+        itemName: 'Industrial Air Receiver Tank 1000L (10 Bar)',
+        category: 'Machine',
+        partNumber: 'HT-ART-1000L',
         branch: 'Rajkot',
-        quantity: 24,
+        quantity: 2,
+        unit: 'Units',
+        minAlertLevel: 1,
+        annualConsumption: 10,
+        unitPrice: 115000,
+        compatibleModels: 'Vertical Compressed Air Storage Tank',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Vertical 1000L Tank with certified safety valve & pressure gauge'
+      },
+
+      // =========================================================================
+      // SPARE PARTS & CONSUMABLES
+      // =========================================================================
+      {
+        id: 'STK-SP-AF11-SRT',
+        itemName: 'Air Filter Cartridge (HAT 4 - HAT 11)',
+        category: 'Spare Part',
+        partNumber: 'HT-AF-HAT11',
+        branch: 'Surat',
+        quantity: 30,
+        unit: 'Units',
+        minAlertLevel: 10,
+        annualConsumption: 150,
+        unitPrice: 1800,
+        compatibleModels: 'HAT 4, HAT 7, HAT 11 Models',
+        lastRestockedDate: '2026-09-01',
+        notes: '99.9% dedusting intake filter for compact screw series'
+      },
+      {
+        id: 'STK-SP-AF37-MRB',
+        itemName: 'Air Filter Cartridge (HAT 15 - HAT 37)',
+        category: 'Spare Part',
+        partNumber: 'HT-AF-HAT37',
+        branch: 'Morbi',
+        quantity: 28,
         unit: 'Units',
         minAlertLevel: 8,
-        annualConsumption: 110,
-        unitPrice: 2200,
-        compatibleModels: '30 HP Compact Series',
-        lastRestockedDate: '2026-08-27',
-        notes: 'Fast moving consumable in Rajkot machine tooling'
+        annualConsumption: 130,
+        unitPrice: 2600,
+        compatibleModels: 'HAT 15, HAT 18, HAT 22, HAT 30, HAT 37 Models',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Heavy duty nano-fiber air filter'
       },
       {
-        id: 'STK-RJK-04',
-        itemName: 'Thermostatic Valve Element (71°C)',
+        id: 'STK-SP-AF75-RJK',
+        itemName: 'Air Filter Cartridge (HAT 45 - HAT 75)',
         category: 'Spare Part',
-        partNumber: 'HT-THV-71C',
+        partNumber: 'HT-AF-HAT75',
         branch: 'Rajkot',
-        quantity: 8,
+        quantity: 20,
         unit: 'Units',
-        minAlertLevel: 3,
-        annualConsumption: 32,
-        unitPrice: 4500,
-        compatibleModels: 'All Oil Injected Screw Compressors',
-        lastRestockedDate: '2026-08-08',
-        notes: 'Oil temperature regulation valve'
+        minAlertLevel: 6,
+        annualConsumption: 90,
+        unitPrice: 3800,
+        compatibleModels: 'HAT 45, HAT 55, HAT 75 Models',
+        lastRestockedDate: '2026-09-01',
+        notes: 'High capacity dust intake filter'
       },
       {
-        id: 'STK-RJK-05',
-        itemName: 'Minimum Pressure Valve (MPV) Kit',
+        id: 'STK-SP-OF-SRT',
+        itemName: 'Spin-On Oil Filter (HAT Series)',
         category: 'Spare Part',
-        partNumber: 'HT-MPV-KIT-50',
-        branch: 'Rajkot',
-        quantity: 5,
-        unit: 'Kits',
-        minAlertLevel: 3,
-        annualConsumption: 26,
-        unitPrice: 5800,
-        compatibleModels: '50 HP Discharge Line Valves',
-        lastRestockedDate: '2026-08-05',
-        notes: 'Includes internal seals and return spring'
+        partNumber: 'HT-OF-HAT-SO',
+        branch: 'Surat',
+        quantity: 25,
+        unit: 'Units',
+        minAlertLevel: 8,
+        annualConsumption: 120,
+        unitPrice: 1950,
+        compatibleModels: 'All HAT Single Stage & Two Stage Compressors',
+        lastRestockedDate: '2026-09-01',
+        notes: 'High pressure spin-on oil filter'
+      },
+      {
+        id: 'STK-SP-SEP-MRB',
+        itemName: 'Air-Oil Separator Element (HAT 37 - HAT 75)',
+        category: 'Spare Part',
+        partNumber: 'HT-SEP-HAT-FL',
+        branch: 'Morbi',
+        quantity: 12,
+        unit: 'Units',
+        minAlertLevel: 4,
+        annualConsumption: 40,
+        unitPrice: 8500,
+        compatibleModels: 'HAT 37, HAT 45, HAT 55, HAT 75 Models',
+        lastRestockedDate: '2026-09-01',
+        notes: 'Residual oil content < 3 ppm'
+      },
+      {
+        id: 'STK-SP-OIL-SRT',
+        itemName: 'Synthetic Compressor Lubricant (ISO VG 46 - 20L)',
+        category: 'Spare Part',
+        partNumber: 'HT-OIL-VG46-20L',
+        branch: 'Surat',
+        quantity: 18,
+        unit: 'Pails (20L)',
+        minAlertLevel: 6,
+        annualConsumption: 110,
+        unitPrice: 7800,
+        compatibleModels: 'All Hi-Tech HAT Rotary Screw Series',
+        lastRestockedDate: '2026-09-01',
+        notes: '8000-Hour long life synthetic rotary screw lubricant'
       }
     ];
 
-    return this.getLocal('hitech_v2_stock_items', fallbackStock);
+    const localData = this.getLocal('hitech_v2_stock_items', null);
+    if (!localData || localData.length === 0 || !localData.some(s => s.partNumber?.startsWith('HAT'))) {
+      this.saveLocal('hitech_v2_stock_items', fallbackStock);
+      return fallbackStock;
+    }
+
+    return localData;
   }
 
   async addStockItem(item) {

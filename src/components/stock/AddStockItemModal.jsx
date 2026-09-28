@@ -5,21 +5,45 @@ import { Input, Textarea, CustomSelect } from '../ui/Input.jsx';
 import { Package, Plus, Sparkles, Building2, Wrench, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 
-export const AddStockItemModal = ({ isOpen, onClose, onStockAdded, defaultBranch = 'Surat' }) => {
+export const AddStockItemModal = ({
+  isOpen,
+  onClose,
+  onStockAdded,
+  defaultBranch = 'Surat',
+  initialCategory = 'Spare Part'
+}) => {
   const [formData, setFormData] = useState({
     itemName: '',
-    category: 'Spare Part', // 'Machine' (Sales) | 'Spare Part' (Service)
+    category: initialCategory || 'Spare Part', // 'Machine' (Sales) | 'Spare Part' (Service)
     partNumber: '',
     branch: defaultBranch,
-    quantity: 10,
+    quantity: initialCategory === 'Machine' ? 2 : 10,
     unit: 'Units',
-    minAlertLevel: 4,
-    annualConsumption: 50,
+    minAlertLevel: initialCategory === 'Machine' ? 2 : 4,
+    annualConsumption: initialCategory === 'Machine' ? 12 : 50,
     unitPrice: '',
     compatibleModels: '',
     notes: ''
   });
   const [submitting, setSubmitting] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setFormData({
+        itemName: '',
+        category: initialCategory || 'Spare Part',
+        partNumber: '',
+        branch: defaultBranch,
+        quantity: initialCategory === 'Machine' ? 2 : 10,
+        unit: 'Units',
+        minAlertLevel: initialCategory === 'Machine' ? 2 : 4,
+        annualConsumption: initialCategory === 'Machine' ? 12 : 50,
+        unitPrice: '',
+        compatibleModels: '',
+        notes: ''
+      });
+    }
+  }, [isOpen, initialCategory, defaultBranch]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
