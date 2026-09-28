@@ -1703,6 +1703,130 @@ class SupabaseDatabase {
     this.saveLocal('hitech_v2_stock_items', current.filter(s => s.id !== id));
   }
 
+  // --- NOTIFICATIONS & DUE DATE ALERTS ---
+  async getNotifications() {
+    const dismissed = this.getLocal('hitech_v2_dismissed_notifications', []);
+    const dismissedSet = new Set(dismissed);
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const [services, leads] = await Promise.all([
+      this.getServices(),
+      this.getLeads()
+    ]);
+
+    const generated = [];
+
+    // 1. Service Due Date Notifications (3 Days = Red, 1 Week = Orange)
+    (services || []).forEach((srv) => {
+      if (srv.status === 'Completed') return;
+      if (!srv.scheduledDate) return;
+
+      const target = new Date(srv.scheduledDate);
+      target.setHours(0, 0, 0, 0);
+      if (isNaN(target.getTime())) return;
+
+      const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Overdue / Today / <= 3 Days: RED / URGENT
+      if (diffDays <= 3) {
+        let title = '';
+        let type = 'today';
+        let severity = 'urgent'; // red
+        if (diffDays < 0) {
+          title = `⚠️ Overdue Service Alert: ${srv.customerName}`;
+        } else if (diffDays === 0) {
+          title = `🚨 Service Due Today: ${srv.customerName}`;
+        } else {
+          title = `🔴 Urgent Service Due in ${diffDays} Day${diffDays === 1 ? '' : 's'}: ${srv.customerName}`;
+        }
+
+        const notifId = `notif-srv-${srv.id}-${srv.scheduledDate}`;
+        if (!dismissedSet.has(notifId)) {
+          generated.push({
+            id: notifId,
+            serviceId: srv.id,
+            title,
+            type,
+            severity,
+            daysRemaining: diffDays,
+            message: `${srv.serviceName || 'Scheduled Service'} for ${srv.customerName} (${srv.company || 'Client'}) is due on ${srv.scheduledDate}. Assigned Engineer: ${srv.assignedEngineer || 'Unassigned'}.`,
+            date: srv.scheduledDate,
+            createdAt: new Date().toISOString()
+          });
+        }
+      } else if (diffDays <= 7) {
+        // <= 7 Days: ORANGE / 1 WEEK WARNING
+        const notifId = `notif-srv-${srv.id}-${srv.scheduledDate}`;
+        if (!dismissedSet.has(notifId)) {
+          generated.push({
+            id: notifId,
+            serviceId: srv.id,
+            title: `🟠 Upcoming Service (1 Week / ${diffDays} Days Left): ${srv.customerName}`,
+            type: 'tomorrow',
+            severity: 'warning', // orange
+            daysRemaining: diffDays,
+            message: `Upcoming ${srv.serviceName || 'Service'} for ${srv.customerName} (${srv.company || 'Client'}) on ${srv.scheduledDate}. Assigned Engineer: ${srv.assignedEngineer || 'Unassigned'}.`,
+            date: srv.scheduledDate,
+            createdAt: new Date().toISOString()
+          });
+        }
+      }
+    });
+
+    // 2. Pending Lead Follow-up Due Dates
+    (leads || []).forEach((lead) => {
+      if (lead.status === 'Won' || lead.status === 'Lost') return;
+      if (!lead.followUpDate) return;
+
+      const target = new Date(lead.followUpDate);
+      target.setHours(0, 0, 0, 0);
+      if (isNaN(target.getTime())) return;
+
+      const diffDays = Math.round((target.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 3) {
+        const notifId = `notif-lead-${lead.id}-${lead.followUpDate}`;
+        if (!dismissedSet.has(notifId)) {
+          generated.push({
+            id: notifId,
+            leadId: lead.id,
+            title: diffDays <= 0 ? `📞 Lead Follow-up Due: ${lead.customerName}` : `📞 Follow-up in ${diffDays}d: ${lead.customerName}`,
+            type: 'followup',
+            severity: diffDays <= 0 ? 'urgent' : 'warning',
+            daysRemaining: diffDays,
+            message: `Lead follow-up with ${lead.customerName} (${lead.company}) regarding ${lead.interestedProduct || 'Equipment'}. Sales: ${lead.salesPersonName || 'Sales Rep'}.`,
+            date: lead.followUpDate,
+            createdAt: new Date().toISOString()
+          });
+        }
+      }
+    });
+
+    // Sort by urgency: smallest daysRemaining first
+    generated.sort((a, b) => (a.daysRemaining ?? 99) - (b.daysRemaining ?? 99));
+    return generated;
+  }
+
+  async deleteNotification(id) {
+    const dismissed = this.getLocal('hitech_v2_dismissed_notifications', []);
+    if (!dismissed.includes(id)) {
+      dismissed.push(id);
+      this.saveLocal('hitech_v2_dismissed_notifications', dismissed);
+    }
+    return true;
+  }
+
+  async clearAllNotifications() {
+    const notifs = await this.getNotifications();
+    const ids = notifs.map(n => n.id);
+    const dismissed = this.getLocal('hitech_v2_dismissed_notifications', []);
+    const merged = Array.from(new Set([...dismissed, ...ids]));
+    this.saveLocal('hitech_v2_dismissed_notifications', merged);
+    return true;
+  }
+
   // Helper local storage functions
   getLocal(key, fallback) {
     try {

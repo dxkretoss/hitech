@@ -236,8 +236,102 @@ export const ServicesPage = () => {
     };
   };
 
+  // Helper for service date urgency (<=3 days = Red, <=7 days = Orange)
+  const getServiceDateUrgency = (dateStr) => {
+    if (!dateStr) {
+      return {
+        color: 'slate',
+        text: 'No Date',
+        days: null,
+        isRed: false,
+        isOrange: false,
+        badgeClass: 'bg-slate-100 text-slate-800 border-slate-200',
+        pillClass: 'bg-slate-200 text-slate-700'
+      };
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(dateStr);
+    target.setHours(0, 0, 0, 0);
+
+    if (isNaN(target.getTime())) {
+      return {
+        color: 'slate',
+        text: dateStr,
+        days: null,
+        isRed: false,
+        isOrange: false,
+        badgeClass: 'bg-slate-100 text-slate-800 border-slate-200',
+        pillClass: 'bg-slate-200 text-slate-700'
+      };
+    }
+
+    const diffTime = target.getTime() - today.getTime();
+    const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+    if (diffDays < 0) {
+      return {
+        color: 'red',
+        text: `${Math.abs(diffDays)}d Overdue`,
+        days: diffDays,
+        isRed: true,
+        isOrange: false,
+        badgeClass: 'bg-red-50 text-red-700 border-red-300 shadow-xs',
+        pillClass: 'bg-red-100 text-red-800'
+      };
+    } else if (diffDays === 0) {
+      return {
+        color: 'red',
+        text: 'Due Today',
+        days: 0,
+        isRed: true,
+        isOrange: false,
+        badgeClass: 'bg-red-50 text-red-700 border-red-300 shadow-xs',
+        pillClass: 'bg-red-100 text-red-800'
+      };
+    } else if (diffDays <= 3) {
+      return {
+        color: 'red',
+        text: `${diffDays} Day${diffDays === 1 ? '' : 's'} Left`,
+        days: diffDays,
+        isRed: true,
+        isOrange: false,
+        badgeClass: 'bg-red-50 text-red-700 border-red-300 shadow-xs',
+        pillClass: 'bg-red-100 text-red-800'
+      };
+    } else if (diffDays <= 7) {
+      return {
+        color: 'orange',
+        text: `${diffDays} Days Left (1 Wk)`,
+        days: diffDays,
+        isRed: false,
+        isOrange: true,
+        badgeClass: 'bg-amber-50 text-amber-900 border-amber-300 shadow-xs',
+        pillClass: 'bg-amber-100 text-amber-900'
+      };
+    } else {
+      return {
+        color: 'slate',
+        text: `In ${diffDays} Days`,
+        days: diffDays,
+        isRed: false,
+        isOrange: false,
+        badgeClass: 'bg-slate-100 text-slate-800 border-slate-200',
+        pillClass: 'bg-slate-200 text-slate-700'
+      };
+    }
+  };
+
   // Filtered Services
   const filteredServices = services.filter((s) => {
+    if (activeTab === 'Urgent') {
+      if (s.status === 'Completed' || !s.scheduledDate) return false;
+      return getServiceDateUrgency(s.scheduledDate).isRed;
+    }
+    if (activeTab === 'Week') {
+      if (s.status === 'Completed' || !s.scheduledDate) return false;
+      return getServiceDateUrgency(s.scheduledDate).isOrange;
+    }
     if (activeTab !== 'All' && s.status !== activeTab) return false;
 
     if (serviceSearchTerm) {
@@ -328,6 +422,8 @@ export const ServicesPage = () => {
 
   const countUpcoming = services.filter((s) => s.status === 'Upcoming').length;
   const countCompleted = services.filter((s) => s.status === 'Completed').length;
+  const countUrgentRed = services.filter((s) => s.status !== 'Completed' && s.scheduledDate && getServiceDateUrgency(s.scheduledDate).isRed).length;
+  const countOneWeekOrange = services.filter((s) => s.status !== 'Completed' && s.scheduledDate && getServiceDateUrgency(s.scheduledDate).isOrange).length;
 
   const totalSpareUnits = userSpareParts.reduce((acc, p) => acc + (Number(p.quantity) || 0), 0);
   const lowStockPartsCount = userSpareParts.filter((p) => getConsumptionVelocity(p).isLowStock).length;
@@ -382,28 +478,45 @@ export const ServicesPage = () => {
     },
     {
       header: 'Service Date',
-      cell: (row) => (
-        <div className="text-xs">
-          {row.status === 'Completed' ? (
-            <div>
+      cell: (row) => {
+        if (row.status === 'Completed') {
+          const nextUrgency = row.nextServiceDate ? getServiceDateUrgency(row.nextServiceDate) : null;
+          return (
+            <div className="text-xs space-y-1">
               <span className="font-bold text-emerald-700 flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                 Done: {row.completionDate || row.scheduledDate}
               </span>
               {row.nextServiceDate && (
-                <span className="text-[11px] text-indigo-700 block mt-0.5 font-semibold">
-                  Next Due: {row.nextServiceDate}
+                <span className={`inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-md border ${nextUrgency ? nextUrgency.badgeClass : 'bg-indigo-50 text-indigo-700 border-indigo-200'}`}>
+                  Next Due: {row.nextServiceDate} {nextUrgency ? `(${nextUrgency.text})` : ''}
                 </span>
               )}
             </div>
-          ) : (
-            <span className="font-bold text-slate-800 flex items-center gap-1 bg-slate-100 px-2.5 py-1 rounded-lg w-fit">
-              <Calendar className="w-3.5 h-3.5 text-[#3B318A]" />
+          );
+        }
+
+        const urgency = getServiceDateUrgency(row.scheduledDate);
+        return (
+          <div className="text-xs space-y-1">
+            <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border font-bold ${urgency.badgeClass}`}>
+              {urgency.isRed ? (
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+              ) : urgency.isOrange ? (
+                <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
+              ) : (
+                <Calendar className="w-3.5 h-3.5 text-[#3B318A] shrink-0" />
+              )}
               Due: {row.scheduledDate}
             </span>
-          )}
-        </div>
-      )
+            <div className="flex items-center gap-1">
+              <span className={`text-[10px] uppercase font-black tracking-wide px-1.5 py-0.5 rounded ${urgency.pillClass}`}>
+                {urgency.text}
+              </span>
+            </div>
+          </div>
+        );
+      }
     },
     {
       header: 'Work Done / Parts Changed',
@@ -545,16 +658,34 @@ export const ServicesPage = () => {
         const initialSrv = services.find((s) => s.customerId === row.id || s.customerName === row.customerName);
         const isCompleted = initialSrv?.status === 'Completed';
 
-        return isCompleted ? (
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-            Commissioned
-          </span>
-        ) : (
-          <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full">
-            <Clock className="w-3.5 h-3.5 text-amber-600" />
-            1st Inspection Due
-          </span>
+        if (isCompleted) {
+          return (
+            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-800 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+              Commissioned
+            </span>
+          );
+        }
+
+        const srvDate = initialSrv?.scheduledDate || row.nextServiceDate || row.installationDate;
+        const urgency = getServiceDateUrgency(srvDate);
+
+        return (
+          <div className="space-y-1">
+            <span className={`inline-flex items-center gap-1 text-[11px] font-bold border px-2.5 py-0.5 rounded-full ${urgency.badgeClass}`}>
+              {urgency.isRed ? (
+                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              ) : urgency.isOrange ? (
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+              ) : (
+                <Clock className="w-3.5 h-3.5 text-amber-600" />
+              )}
+              1st Inspection Due
+            </span>
+            <span className={`text-[10px] font-bold block ${urgency.isRed ? 'text-red-600' : urgency.isOrange ? 'text-amber-700' : 'text-gray-500'}`}>
+              {urgency.text} ({srvDate})
+            </span>
+          </div>
         );
       }
     },
@@ -819,6 +950,65 @@ export const ServicesPage = () => {
       {/* VIEW 1: SERVICE SCHEDULES */}
       {mainView === 'SCHEDULES' && (
         <div className="space-y-4">
+          {/* Quick Schedule Urgency Metrics */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5">
+            <Card
+              onClick={() => setActiveTab('All')}
+              className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                activeTab === 'All' ? 'ring-2 ring-emerald-600 bg-emerald-50/70 border-emerald-300' : 'bg-white hover:bg-slate-50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wide">Total Services</span>
+                <Calendar className="w-4 h-4 text-emerald-700" />
+              </div>
+              <span className="text-2xl font-black text-gray-900 block mt-1">{services.length}</span>
+              <span className="text-[10px] text-gray-400">All registered schedules</span>
+            </Card>
+
+            <Card
+              onClick={() => setActiveTab('Urgent')}
+              className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                activeTab === 'Urgent' ? 'ring-2 ring-red-600 bg-red-100/80 border-red-300' : 'bg-red-50/60 border-red-200 hover:bg-red-50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-red-800 uppercase tracking-wide">🚨 Urgent (≤3 Days)</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" />
+              </div>
+              <span className="text-2xl font-black text-red-700 block mt-1">{countUrgentRed}</span>
+              <span className="text-[10px] font-semibold text-red-600">Due today or within 3 days</span>
+            </Card>
+
+            <Card
+              onClick={() => setActiveTab('Week')}
+              className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                activeTab === 'Week' ? 'ring-2 ring-amber-600 bg-amber-100/80 border-amber-300' : 'bg-amber-50/60 border-amber-200 hover:bg-amber-50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-amber-900 uppercase tracking-wide">🟠 Due in 1 Week</span>
+                <Clock className="w-4 h-4 text-amber-600" />
+              </div>
+              <span className="text-2xl font-black text-amber-800 block mt-1">{countOneWeekOrange}</span>
+              <span className="text-[10px] font-semibold text-amber-700">Due within 4-7 days</span>
+            </Card>
+
+            <Card
+              onClick={() => setActiveTab('Completed')}
+              className={`p-3.5 rounded-2xl border transition-all cursor-pointer ${
+                activeTab === 'Completed' ? 'ring-2 ring-emerald-600 bg-emerald-100/80 border-emerald-300' : 'bg-emerald-50/40 border-emerald-200 hover:bg-emerald-50'
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-emerald-800 uppercase tracking-wide">Completed Reports</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+              </div>
+              <span className="text-2xl font-black text-emerald-800 block mt-1">{countCompleted}</span>
+              <span className="text-[10px] text-gray-500">Service logs recorded</span>
+            </Card>
+          </div>
+
           <Card className="space-y-4">
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
               <div className="relative flex-1">
@@ -838,6 +1028,8 @@ export const ServicesPage = () => {
                 className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-[#3B318A] outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer shadow-2xs"
               >
                 <option value="All">All Services ({services.length})</option>
+                <option value="Urgent">🚨 Urgent Due (≤3 Days) ({countUrgentRed})</option>
+                <option value="Week">🟠 Due in 1 Week ({countOneWeekOrange})</option>
                 <option value="Upcoming">Upcoming ({countUpcoming})</option>
                 <option value="Completed">Completed Reports ({countCompleted})</option>
               </select>

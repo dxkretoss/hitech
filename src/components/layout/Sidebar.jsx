@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext.jsx';
+import { db } from '../../services/db.js';
 import logoPng from '../../assets/logo.png';
 import {
   LayoutDashboard,
@@ -25,10 +26,28 @@ export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
   const { role, currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [notificationCount, setNotificationCount] = useState(0);
+  const [hasUrgentAlerts, setHasUrgentAlerts] = useState(false);
 
   const isOwner = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
   const hasStockAccess = isOwner || currentUser?.canViewStock === true;
   const dashboardPath = isOwner ? '/admin/dashboard' : '/dashboard';
+
+  useEffect(() => {
+    const loadNotifs = async () => {
+      try {
+        const notifs = await db.getNotifications();
+        const activeList = notifs || [];
+        setNotificationCount(activeList.length);
+        setHasUrgentAlerts(activeList.some(n => n.severity === 'urgent'));
+      } catch (e) {
+        console.error('Sidebar load notifications error:', e);
+      }
+    };
+    loadNotifs();
+    const interval = setInterval(loadNotifs, 10000);
+    return () => clearInterval(interval);
+  }, [location.pathname]);
 
   const navItems = [
     { label: 'Dashboard', path: isOwner ? '/admin/dashboard' : '/dashboard', icon: LayoutDashboard },
@@ -138,10 +157,26 @@ export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
                     : 'text-gray-600 hover:bg-indigo-50/60 hover:text-[#3B318A]'
                 )}
               >
-                <div className={clsx('flex items-center', collapsed ? 'justify-center' : 'gap-3')}>
+                <div className={clsx('flex items-center relative', collapsed ? 'justify-center' : 'gap-3')}>
                   <Icon className={clsx(collapsed ? 'w-5 h-5' : 'w-4 h-4', isCurrentActive ? 'text-white' : 'text-gray-400 group-hover:text-[#3B318A]')} />
                   {!collapsed && <span>{item.label}</span>}
+                  {collapsed && item.label === 'Notifications' && notificationCount > 0 && (
+                    <span className={clsx('absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full ring-2 ring-white', hasUrgentAlerts ? 'bg-red-500 animate-pulse' : 'bg-amber-500')} />
+                  )}
                 </div>
+
+                {!collapsed && item.label === 'Notifications' && notificationCount > 0 && (
+                  <span className={clsx(
+                    'text-[10px] font-black px-1.5 py-0.5 rounded-full shadow-2xs',
+                    isCurrentActive
+                      ? 'bg-white text-indigo-900'
+                      : hasUrgentAlerts
+                        ? 'bg-red-500 text-white animate-pulse'
+                        : 'bg-amber-500 text-white'
+                  )}>
+                    {notificationCount}
+                  </span>
+                )}
 
                 {!collapsed && item.ownerOnly && (
                   <span className={clsx('text-[9px] px-1.5 py-0.5 rounded font-bold uppercase', isCurrentActive ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800')}>
@@ -151,9 +186,12 @@ export const Sidebar = ({ isOpen, onClose, collapsed, onToggleCollapse }) => {
 
                 {/* Floating Tooltip when collapsed */}
                 {collapsed && (
-                  <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl">
-                    {item.label}
-                    {item.ownerOnly && <span className="ml-1.5 text-[10px] text-amber-300 font-bold">(Admin)</span>}
+                  <div className="absolute left-full ml-3 px-2.5 py-1.5 bg-gray-900 text-white text-xs font-medium rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl flex items-center gap-1.5">
+                    <span>{item.label}</span>
+                    {item.label === 'Notifications' && notificationCount > 0 && (
+                      <span className="text-[10px] bg-red-500 text-white font-bold px-1.5 rounded-full">{notificationCount}</span>
+                    )}
+                    {item.ownerOnly && <span className="ml-1 text-[10px] text-amber-300 font-bold">(Admin)</span>}
                   </div>
                 )}
               </NavLink>
