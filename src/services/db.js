@@ -939,7 +939,6 @@ class SupabaseDatabase {
     const current = await this.getServices();
     this.saveLocal('hitech_v2_services', current.map(s => s.id === serviceId ? { ...s, status: newStatus } : s));
   }
-
   // --- PROFILES / USERS (Registered Staff) ---
   async getProfiles() {
     if (isSupabaseConfigured()) {
@@ -950,87 +949,42 @@ class SupabaseDatabase {
           .order('created_at', { ascending: false });
 
         if (error) throw error;
-        if (data && data.length > 0) {
+        if (data) {
           return data.map(p => ({
             id: p.id,
-            name: p.name || p.email.split('@')[0],
+            name: p.name || p.email?.split('@')[0] || 'Team Member',
             email: p.email,
             role: p.role || 'Sales',
             branch: p.branch || 'Surat',
-            canViewStock: p.can_view_stock === true || p.canViewStock === true,
+            canViewStock: p.can_view_stock === true || p.role === 'Engineer',
             status: 'Active',
             date: p.created_at ? p.created_at.split('T')[0] : new Date().toISOString().split('T')[0]
           }));
         }
       } catch (e) {
-        console.warn('Supabase fetch profiles error:', e);
+        console.error('Supabase fetch profiles error:', e);
       }
     }
-    const local = this.getLocal('hitech_v2_profiles', null);
-    if (local && local.length > 0) {
-      return local;
-    }
-    const defaultProfiles = [
-      { id: 'S-101', name: 'Vikram Mehta', email: 'sales@hitechair.in', role: 'Sales', branch: 'Surat', canViewStock: false, status: 'Active', date: '2026-08-01' },
-      { id: 'S-102', name: 'Anita Sharma', email: 'anita.sales@hitechair.in', role: 'Sales', branch: 'Surat', canViewStock: false, status: 'Active', date: '2026-08-02' },
-      { id: 'E-201', name: 'Sanjay Patel', email: 'sanjay.engineer@hitechair.in', role: 'Engineer', branch: 'Surat', canViewStock: true, status: 'Active', date: '2026-08-03' },
-      { id: 'A-301', name: 'Hi-Tech Super Administrator', email: 'admin@hitechair.in', role: 'Owner', branch: 'Surat', canViewStock: true, status: 'Active', date: '2026-07-15' }
-    ];
-    this.saveLocal('hitech_v2_profiles', defaultProfiles);
-    return defaultProfiles;
+    return [];
   }
 
   async updateProfileStockAccess(profileId, canViewStock) {
     if (isSupabaseConfigured()) {
       try {
-        // 1. Try updating by Supabase UUID/ID
-        const { data, error } = await supabase
+        const { error } = await supabase
           .from('profiles')
           .update({ can_view_stock: canViewStock })
-          .eq('id', profileId)
-          .select();
-
-        if (error) {
-          console.warn('Supabase update profile by id returned error, trying email fallback:', error);
-          const currentLocal = this.getLocal('hitech_v2_profiles', []) || [];
-          const target = currentLocal.find(p => p.id === profileId);
-          if (target && target.email) {
-            const { error: emailErr } = await supabase
-              .from('profiles')
-              .update({ can_view_stock: canViewStock })
-              .eq('email', target.email);
-            if (emailErr) console.warn('Supabase update by email error:', emailErr);
-          }
-        }
+          .eq('id', profileId);
+        if (error) console.error('Supabase update profile stock access error:', error);
       } catch (e) {
-        console.warn('Supabase update profile stock access error:', e);
+        console.error('Supabase update profile stock access exception:', e);
       }
     }
 
-    // 2. Always immediately update and persist local storage
-    const currentLocal = this.getLocal('hitech_v2_profiles', []) || [];
-    let updated = [];
-    if (currentLocal.length > 0) {
-      updated = currentLocal.map(p => 
-        (p.id === profileId || (p.email && p.email === profileId)) 
-          ? { ...p, canViewStock, can_view_stock: canViewStock } 
-          : p
-      );
-    } else {
-      const defaultList = await this.getProfiles();
-      updated = defaultList.map(p => 
-        (p.id === profileId || (p.email && p.email === profileId)) 
-          ? { ...p, canViewStock, can_view_stock: canViewStock } 
-          : p
-      );
-    }
-    this.saveLocal('hitech_v2_profiles', updated);
-
-    // 3. Also update logged in user in localStorage if matching
+    // Update current session user in localStorage if matching
     try {
       const currentUser = JSON.parse(localStorage.getItem('hitech_v2_user') || '{}');
-      const targetProfile = updated.find(p => p.id === profileId || p.email === profileId);
-      if (currentUser && (currentUser.id === profileId || (targetProfile && currentUser.email === targetProfile.email))) {
+      if (currentUser && (currentUser.id === profileId || currentUser.email === profileId)) {
         currentUser.canViewStock = canViewStock;
         currentUser.can_view_stock = canViewStock;
         localStorage.setItem('hitech_v2_user', JSON.stringify(currentUser));
@@ -1038,8 +992,6 @@ class SupabaseDatabase {
     } catch (e) {
       console.error('Error updating current session user stock access:', e);
     }
-
-    return updated;
   }
 
   // --- ADMIN ANALYTICS & SALES PERSON ATTRIBUTION BREAKDOWN ---
