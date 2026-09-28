@@ -31,10 +31,68 @@ class SupabaseDatabase {
     return null;
   }
 
+  // Helper to invoke Supabase Edge Function (supports dedicated modular functions and unified crm-api router)
+  async invokeEdgeFunction(action, payload = {}, userContext = null) {
+    if (!isSupabaseConfigured()) return null;
+    try {
+      const user = this.getCurrentUserContext(userContext);
+
+      // Determine dedicated module function name
+      let functionName = 'crm-api';
+      if (action.includes('profile')) {
+        functionName = 'profiles';
+      } else if (action.includes('lead')) {
+        functionName = 'leads';
+      } else if (action.includes('customer')) {
+        functionName = 'customers';
+      } else if (action.includes('service')) {
+        functionName = 'services';
+      } else if (action.includes('stock')) {
+        functionName = 'stock';
+      } else if (action.includes('notification')) {
+        functionName = 'notifications';
+      } else if (action.includes('future')) {
+        functionName = 'future-opps';
+      }
+
+      // 1. Try dedicated modular function first
+      const res = await supabase.functions.invoke(functionName, {
+        body: { action, payload, user }
+      });
+      if (res?.data?.success && res.data.data !== undefined) {
+        return res.data.data;
+      }
+
+      // 2. If dedicated not found / fallback, try unified crm-api router
+      if (functionName !== 'crm-api') {
+        const unifiedRes = await supabase.functions.invoke('crm-api', {
+          body: { action, payload, user }
+        });
+        if (unifiedRes?.data?.success && unifiedRes.data.data !== undefined) {
+          return unifiedRes.data.data;
+        }
+      }
+    } catch (e) {
+      // Graceful fallback to direct DB operations
+      return null;
+    }
+    return null;
+  }
+
+
   // --- LEADS ---
   async getLeads(userContext = null) {
     const user = this.getCurrentUserContext(userContext);
+    
+    // Try Edge Function first
+    const edgeResult = await this.invokeEdgeFunction('get_leads', {}, user);
+    if (edgeResult && Array.isArray(edgeResult)) {
+      this.saveLocal('hitech_v2_leads', edgeResult);
+      return edgeResult;
+    }
+
     let allLeads = [];
+
 
     if (isSupabaseConfigured()) {
       try {
@@ -444,7 +502,16 @@ class SupabaseDatabase {
   // --- FUTURE OPPORTUNITIES ---
   async getFutureOpportunities(userContext = null) {
     const user = this.getCurrentUserContext(userContext);
+    
+    // Try Edge Function first
+    const edgeResult = await this.invokeEdgeFunction('get_future_opportunities', {}, user);
+    if (edgeResult && Array.isArray(edgeResult)) {
+      this.saveLocal('hitech_v2_future_opps', edgeResult);
+      return edgeResult;
+    }
+
     let allOpps = [];
+
 
     if (isSupabaseConfigured()) {
       try {
@@ -575,7 +642,16 @@ class SupabaseDatabase {
   // --- CUSTOMERS ---
   async getCustomers(userContext = null) {
     const user = this.getCurrentUserContext(userContext);
+    
+    // Try Edge Function first
+    const edgeResult = await this.invokeEdgeFunction('get_customers', {}, user);
+    if (edgeResult && Array.isArray(edgeResult)) {
+      this.saveLocal('hitech_v2_customers', edgeResult);
+      return edgeResult;
+    }
+
     let allCustomers = [];
+
 
     if (isSupabaseConfigured()) {
       try {
@@ -759,7 +835,16 @@ class SupabaseDatabase {
   // --- SERVICES ---
   async getServices(userContext = null) {
     const user = this.getCurrentUserContext(userContext);
+    
+    // Try Edge Function first
+    const edgeResult = await this.invokeEdgeFunction('get_services', {}, user);
+    if (edgeResult && Array.isArray(edgeResult)) {
+      this.saveLocal('hitech_v2_services', edgeResult);
+      return edgeResult;
+    }
+
     const fallbackServices = [
+
       {
         id: 'SRV-101',
         customerId: 'CUST-101',
@@ -1064,7 +1149,14 @@ class SupabaseDatabase {
   }
   // --- PROFILES / USERS (Registered Staff) ---
   async getProfiles() {
+    // Try Edge Function first
+    const edgeResult = await this.invokeEdgeFunction('get_profiles', {}, null);
+    if (edgeResult && Array.isArray(edgeResult)) {
+      return edgeResult;
+    }
+
     if (isSupabaseConfigured()) {
+
       try {
         const { data, error } = await supabase
           .from('profiles')
@@ -1079,7 +1171,9 @@ class SupabaseDatabase {
             email: p.email,
             role: p.role || 'Sales',
             branch: p.branch || 'Surat',
-            canViewStock: p.can_view_stock === true || p.role === 'Engineer',
+            canViewStock: p.can_view_stock !== null && p.can_view_stock !== undefined
+              ? p.can_view_stock === true
+              : (p.role === 'Engineer'),
             status: 'Active',
             date: p.created_at ? p.created_at.split('T')[0] : new Date().toISOString().split('T')[0]
           }));
@@ -1092,6 +1186,9 @@ class SupabaseDatabase {
   }
 
   async updateProfileStockAccess(profileId, canViewStock) {
+    // Try Edge Function
+    await this.invokeEdgeFunction('update_profile_stock_access', { profileId, canViewStock }, null);
+
     if (isSupabaseConfigured()) {
       try {
         const { error } = await supabase
@@ -1152,7 +1249,15 @@ class SupabaseDatabase {
 
   // --- STOCK / INVENTORY (Branch-Wise: Surat, Morbi, Rajkot) ---
   async getStockItems() {
+    // Try Edge Function first
+    const edgeResult = await this.invokeEdgeFunction('get_stock', {}, null);
+    if (edgeResult && Array.isArray(edgeResult)) {
+      this.saveLocal('hitech_v2_stock_items', edgeResult);
+      return edgeResult;
+    }
+
     if (isSupabaseConfigured()) {
+
       try {
         const { data, error } = await supabase
           .from('stock_items')
@@ -1744,7 +1849,14 @@ class SupabaseDatabase {
       } catch (e) {}
     }
 
+    // Try Edge Function first
+    const edgeResult = await this.invokeEdgeFunction('get_notifications', {}, user);
+    if (edgeResult && Array.isArray(edgeResult)) {
+      return edgeResult;
+    }
+
     const role = user?.role || (typeof userContext === 'string' ? userContext : 'Owner');
+
     const isOwner = role === 'Owner' || role === 'SuperAdmin' || role === 'Admin';
     const isEngineer = role === 'Engineer';
     const isSales = role === 'Sales';

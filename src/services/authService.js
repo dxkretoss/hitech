@@ -120,7 +120,11 @@ export const loginUser = async ({ email, password }) => {
       });
 
       if (error) {
-        throw error;
+        return { success: false, user: null, error: error.message || 'Invalid login credentials' };
+      }
+
+      if (!data.session?.user) {
+        return { success: false, user: null, error: 'Authentication failed: No active session' };
       }
 
       if (data.session?.access_token) {
@@ -140,7 +144,9 @@ export const loginUser = async ({ email, password }) => {
           .maybeSingle();
 
         if (profileRow) {
-          canViewStock = profileRow.can_view_stock === true || profileRow.role === 'Engineer';
+          canViewStock = profileRow.can_view_stock !== null && profileRow.can_view_stock !== undefined
+            ? profileRow.can_view_stock === true
+            : (profileRow.role === 'Engineer');
           dbRole = profileRow.role;
           dbBranch = profileRow.branch;
           dbName = profileRow.name;
@@ -157,8 +163,8 @@ export const loginUser = async ({ email, password }) => {
         name: dbName || metadata.name || metadata.full_name || cleanEmail.split('@')[0],
         role: userRole,
         branch: dbBranch || metadata.branch || 'Surat',
-        canViewStock: canViewStock || userRole === 'Engineer',
-        can_view_stock: canViewStock || userRole === 'Engineer',
+        canViewStock: canViewStock,
+        can_view_stock: canViewStock,
         avatar: metadata.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
       };
 
@@ -167,18 +173,7 @@ export const loginUser = async ({ email, password }) => {
       return { success: false, user: null, error: err.message || 'Invalid login credentials' };
     }
   } else {
-    // Local fallback mode when Supabase is NOT configured (.env missing)
-    const token = `mock-token-${Date.now()}`;
-    setAuthCookie(token);
-    const user = {
-      id: `U-${Date.now()}`,
-      email: cleanEmail,
-      name: cleanEmail.split('@')[0],
-      role: cleanEmail.includes('engineer') ? 'Engineer' : 'Sales',
-      branch: cleanEmail.includes('morbi') ? 'Morbi' : cleanEmail.includes('rajkot') ? 'Rajkot' : 'Surat',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
-    };
-    return { success: true, user, error: null };
+    return { success: false, user: null, error: 'Database is not configured. Please set up Supabase credentials.' };
   }
 };
 
@@ -197,39 +192,37 @@ export const loginAdmin = async ({ email, password }) => {
       });
 
       if (error) {
-        if (cleanEmail === 'admin@hitechair.in' && cleanPassword === 'ur0zEmoHAapzu4D9l') {
-          const token = `superadmin-token-${Date.now()}`;
-          setAuthCookie(token);
-          const user = {
-            id: 'U-SUPERADMIN',
-            email: cleanEmail,
-            name: 'Hi-Tech Administrator',
-            role: 'Admin',
-            avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
-          };
-          return { success: true, user, error: null };
-        }
-        throw error;
+        return { success: false, user: null, error: error.message || 'Invalid admin credentials' };
+      }
+
+      if (!data.session?.user) {
+        return { success: false, user: null, error: 'Admin authentication failed: No active session' };
       }
 
       const metadata = data.user.user_metadata || {};
       let userRole = metadata.role || 'Admin';
+      let dbBranch = 'Surat';
+      let dbName = null;
 
       try {
         const { data: profileRow } = await supabase
           .from('profiles')
-          .select('role')
+          .select('role, branch, name, can_view_stock')
           .eq('id', data.user.id)
           .maybeSingle();
         if (profileRow?.role) {
           userRole = profileRow.role;
+          dbBranch = profileRow.branch || dbBranch;
+          dbName = profileRow.name;
         }
-      } catch (e) {}
+      } catch (e) {
+        console.warn('Profile fetch warning in loginAdmin:', e);
+      }
 
       if (userRole !== 'Admin' && userRole !== 'Owner' && userRole !== 'SuperAdmin') {
         await supabase.auth.signOut();
         removeAuthCookie();
-        return { success: false, user: null, error: 'Access Denied: Admin privileges required' };
+        return { success: false, user: null, error: 'Access Denied: This account does not have Admin privileges' };
       }
 
       if (data.session?.access_token) {
@@ -239,38 +232,20 @@ export const loginAdmin = async ({ email, password }) => {
       const user = {
         id: data.user.id,
         email: data.user.email,
-        name: metadata.name || metadata.full_name || 'Administrator',
+        name: dbName || metadata.name || metadata.full_name || 'Administrator',
         role: 'Admin',
+        branch: dbBranch,
+        canViewStock: true,
+        can_view_stock: true,
         avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
       };
 
       return { success: true, user, error: null };
     } catch (err) {
-      if (cleanEmail === 'admin@hitechair.in' && cleanPassword === 'ur0zEmoHAapzu4D9l') {
-        const token = `superadmin-token-${Date.now()}`;
-        setAuthCookie(token);
-        const user = {
-          id: 'U-SUPERADMIN',
-          email: cleanEmail,
-          name: 'Hi-Tech Administrator',
-          role: 'Admin',
-          avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
-        };
-        return { success: true, user, error: null };
-      }
       return { success: false, user: null, error: err.message || 'Admin authentication failed' };
     }
   } else {
-    const token = `mock-admin-token-${Date.now()}`;
-    setAuthCookie(token);
-    const user = {
-      id: 'U-SUPERADMIN',
-      email: cleanEmail || 'admin@hitechair.in',
-      name: 'Administrator',
-      role: 'Admin',
-      avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80'
-    };
-    return { success: true, user, error: null };
+    return { success: false, user: null, error: 'Database is not configured. Please set up Supabase credentials.' };
   }
 };
 
@@ -318,7 +293,9 @@ export const getCurrentSessionUser = async () => {
         .maybeSingle();
 
       if (profileRow) {
-        canViewStock = profileRow.can_view_stock === true || profileRow.role === 'Engineer';
+        canViewStock = profileRow.can_view_stock !== null && profileRow.can_view_stock !== undefined
+          ? profileRow.can_view_stock === true
+          : (profileRow.role === 'Engineer');
         dbRole = profileRow.role;
         dbBranch = profileRow.branch;
         dbName = profileRow.name;
@@ -334,8 +311,8 @@ export const getCurrentSessionUser = async () => {
       name: dbName || metadata.name || metadata.full_name || session.user.email.split('@')[0],
       role: userRole,
       branch: dbBranch || metadata.branch || 'Surat',
-      canViewStock: canViewStock || userRole === 'Engineer',
-      can_view_stock: canViewStock || userRole === 'Engineer',
+      canViewStock: canViewStock,
+      can_view_stock: canViewStock,
       avatar: metadata.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'
     };
   } catch (e) {

@@ -1,0 +1,26 @@
+project_id = "hi-tech-crm"
+
+[functions.crm-api]
+verify_jwt = false
+
+[functions.leads]
+verify_jwt = false
+
+[functions.customers]
+verify_jwt = false
+
+[functions.services]
+verify_jwt = false
+
+[functions.stock]
+verify_jwt = false
+
+[functions.notifications]
+verify_jwt = false
+
+[functions.future-opps]
+verify_jwt = false
+
+[functions.profiles]
+verify_jwt = false
+

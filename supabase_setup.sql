@@ -5,20 +5,29 @@
 
 -- 1. Profiles Table (3 Standard Roles: Admin, Engineer, Sales across Branches: Surat, Morbi, Rajkot)
 CREATE TABLE IF NOT EXISTS public.profiles (
+
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
-  role TEXT CHECK (role IN ('Admin', 'Engineer', 'Sales', 'Owner')) DEFAULT 'Sales',
-  branch TEXT CHECK (branch IN ('Surat', 'Morbi', 'Rajkot')) DEFAULT 'Surat',
+  role TEXT DEFAULT 'Sales',
+  branch TEXT DEFAULT 'Surat',
   can_view_stock BOOLEAN DEFAULT false,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- Normalize any legacy roles to Admin
-UPDATE public.profiles SET role = 'Admin' WHERE role IN ('Owner', 'SuperAdmin');
+-- Remove restrictive constraints if they exist
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_branch_check;
 
+-- Ensure columns exist
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Sales';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS branch TEXT DEFAULT 'Surat';
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS can_view_stock BOOLEAN DEFAULT false;
+
+-- Grant permissions to Supabase roles
+GRANT ALL ON TABLE public.profiles TO postgres, authenticated, anon, service_role;
 
 -- Enable RLS on Profiles
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
@@ -38,29 +47,59 @@ CREATE POLICY "Allow public insert access on profiles"
 
 -- Automatic trigger function to insert/update profile when a new user registers via Supabase Auth
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  user_name TEXT;
+  user_role TEXT;
+  user_branch TEXT;
 BEGIN
-  INSERT INTO public.profiles (id, name, email, role, branch)
+  user_name := COALESCE(
+    NEW.raw_user_meta_data->>'name',
+    NEW.raw_user_meta_data->>'full_name',
+    SPLIT_PART(NEW.email, '@', 1)
+  );
+  user_role := COALESCE(
+    NEW.raw_user_meta_data->>'role',
+    CASE 
+      WHEN NEW.email ILIKE 'admin%' OR NEW.email ILIKE '%admin@%' THEN 'Admin'
+      ELSE 'Sales'
+    END
+  );
+  user_branch := COALESCE(NEW.raw_user_meta_data->>'branch', 'Surat');
+
+  INSERT INTO public.profiles (id, name, email, role, branch, can_view_stock)
   VALUES (
     NEW.id,
-    COALESCE(NEW.raw_user_meta_data->>'name', NEW.raw_user_meta_data->>'full_name', SPLIT_PART(NEW.email, '@', 1)),
+    user_name,
     NEW.email,
-    COALESCE(NEW.raw_user_meta_data->>'role', 'Sales'),
-    COALESCE(NEW.raw_user_meta_data->>'branch', 'Surat')
+    user_role,
+    user_branch,
+    (user_role = 'Admin' OR user_role = 'Engineer')
   )
-  ON CONFLICT (email) DO UPDATE
+  ON CONFLICT (id) DO UPDATE
   SET 
-    name = EXCLUDED.name, 
+    name = EXCLUDED.name,
+    email = EXCLUDED.email,
     role = EXCLUDED.role,
     branch = EXCLUDED.branch;
+
   RETURN NEW;
+EXCEPTION
+  WHEN OTHERS THEN
+    RAISE WARNING 'handle_new_user trigger warning: %', SQLERRM;
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
 
 
 -- 2. Leads Table (Sales Team Lead Logging with User Isolation & Ownership)
