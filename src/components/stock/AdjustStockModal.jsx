@@ -124,7 +124,7 @@ export const AdjustStockModal = ({ isOpen, onClose, item, onStockAdjusted }) => 
           </button>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
           <Input
             label={adjustmentType === 'SET' ? 'New Exact Quantity' : 'Quantity to Adjust'}
             type="number"

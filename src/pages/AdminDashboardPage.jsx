@@ -64,20 +64,27 @@ export const AdminDashboardPage = () => {
   return (
     <div className="space-y-6">
       {/* Top Welcome Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-2xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black flex items-center gap-2">
-            Admin Master Dashboard
-            <Badge variant="warning">Executive Control</Badge>
-          </h1>
-          <p className="text-xs text-slate-300 mt-1">
-            Complete visibility of Sales Team Lead Submissions, Deferred Future Requirements, and Field Engineer Service Reminders.
-          </p>
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-6 rounded-2xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-white/10 shrink-0 mt-0.5 sm:mt-1">
+            <ShieldCheck className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-base sm:text-2xl font-black text-white leading-snug">
+                Admin Master Dashboard
+              </h1>
+              <Badge variant="warning" className="shrink-0 text-[10px] sm:text-xs">Executive Control</Badge>
+            </div>
+            <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+              Complete visibility of Sales Team Lead Submissions, Deferred Future Requirements, and Field Engineer Service Reminders.
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4">
         <Card className="border-l-4 border-l-blue-600 cursor-pointer hover:shadow-md transition-shadow" onClick={() => navigate('/admin/team')}>
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase">Sales Persons</span>

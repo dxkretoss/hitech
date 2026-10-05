@@ -169,18 +169,22 @@ export const FutureOpportunitiesPage = () => {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-gray-900 flex items-center gap-2">
-            Future Opportunities Vault
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-black text-gray-900">
+              Future Opportunities Vault
+            </h1>
             <Badge variant="primary">Owner Exclusive</Badge>
-          </h1>
-          <p className="text-xs text-gray-500 mt-1">
+          </div>
+          <p className="text-xs text-gray-500 mt-1 max-w-2xl">
             Securely store customer records who said "call me after 6 months" or "contact next year" so business details are never lost.
           </p>
         </div>
-        <Button onClick={handleOpenAdd} icon={Plus}>Add Opportunity</Button>
+        <div className="shrink-0">
+          <Button onClick={handleOpenAdd} icon={Plus}>Add Opportunity</Button>
+        </div>
       </div>
 
-      <Card className="space-y-4">
+      <Card className="p-4 sm:p-6 space-y-4">
         <div className="relative">
           <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
@@ -188,7 +192,7 @@ export const FutureOpportunitiesPage = () => {
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search future opportunities by customer, company, requirement..."
-            className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
+            className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
           />
         </div>
 

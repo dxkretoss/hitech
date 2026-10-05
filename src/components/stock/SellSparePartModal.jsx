@@ -287,7 +287,7 @@ export const SellSparePartModal = ({
         </div>
 
         {/* Quantity & Unit Price */}
-        <div className="grid grid-cols-2 gap-3.5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
           <Input
             label={`Quantity to Sell (Max: ${maxAvailable})`}
             type="number"

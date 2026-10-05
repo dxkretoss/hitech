@@ -891,29 +891,33 @@ export const ServicesPage = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-6 rounded-2xl shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black flex items-center gap-2">
-            <Wrench className="w-6 h-6 text-emerald-400" />
-            Field Engineering, Installations & Spares Center
-          </h1>
-          <p className="text-xs text-emerald-100 mt-1 max-w-2xl">
-            Register <strong>New Machine Installations</strong>, record commissioning & service reports, schedule preventative maintenance, and manage branch spare parts inventory.
-          </p>
+      <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 text-white p-4 sm:p-6 rounded-2xl shadow-lg flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-white/10 shrink-0 mt-0.5 sm:mt-1">
+            <Wrench className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-400" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-2xl font-black text-white leading-snug">
+              Field Engineering, Installations & Spares Center
+            </h1>
+            <p className="text-xs text-emerald-100/90 mt-1 max-w-2xl leading-relaxed">
+              Register <strong>New Machine Installations</strong>, record commissioning & service reports, schedule preventative maintenance, and manage branch spare parts inventory.
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
           {mainView === 'SCHEDULES' && (
-            <Button onClick={() => setScheduleModalOpen(true)} variant="white" icon={Plus}>
+            <Button onClick={() => setScheduleModalOpen(true)} variant="white" icon={Plus} className="w-full sm:w-auto">
               Schedule Service
             </Button>
           )}
           {mainView === 'INSTALLATIONS' && canAddMachine && (
-            <Button onClick={() => setNewInstallationModalOpen(true)} variant="white" icon={Plus}>
+            <Button onClick={() => setNewInstallationModalOpen(true)} variant="white" icon={Plus} className="w-full sm:w-auto">
               Record New Installation
             </Button>
           )}
           {mainView === 'SPARE_PARTS_STOCK' && isAdmin && (
-            <Button onClick={() => setAddPartModalOpen(true)} variant="white" icon={Plus}>
+            <Button onClick={() => setAddPartModalOpen(true)} variant="white" icon={Plus} className="w-full sm:w-auto">
               Add Spare Part
             </Button>
           )}
@@ -921,10 +925,10 @@ export const ServicesPage = () => {
       </div>
 
       {/* Primary Workspace View Switcher Tabs (3 tabs) */}
-      <div className="flex flex-wrap items-center gap-2 bg-gray-100 p-1.5 rounded-2xl w-fit">
+      <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-2xl w-full sm:w-fit overflow-x-auto max-w-full scrollbar-none">
         <button
           onClick={() => handleTabChange('SCHEDULES')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
             mainView === 'SCHEDULES'
               ? 'bg-emerald-700 text-white shadow-md'
               : 'text-gray-600 hover:text-gray-900'
@@ -936,7 +940,7 @@ export const ServicesPage = () => {
 
         <button
           onClick={() => handleTabChange('INSTALLATIONS')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
             mainView === 'INSTALLATIONS'
               ? 'bg-emerald-700 text-white shadow-md'
               : 'text-gray-600 hover:text-gray-900'
@@ -949,7 +953,7 @@ export const ServicesPage = () => {
         {hasStockAccess && (
           <button
             onClick={() => handleTabChange('SPARE_PARTS_STOCK')}
-            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
               mainView === 'SPARE_PARTS_STOCK'
                 ? 'bg-emerald-700 text-white shadow-md'
                 : 'text-gray-600 hover:text-gray-900'

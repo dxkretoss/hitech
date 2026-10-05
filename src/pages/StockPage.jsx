@@ -806,37 +806,41 @@ export const StockPage = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#3B318A] via-[#2F2770] to-slate-900 text-white p-6 rounded-2xl shadow-lg">
-        <div>
-          <div className="flex items-center gap-2.5 mb-1">
-            <h1 className="text-2xl font-black flex items-center gap-2.5">
-              {isAdmin ? (
-                <Boxes className="w-6 h-6 text-indigo-300" />
-              ) : (
-                <ShoppingBag className="w-6 h-6 text-emerald-300" />
-              )}
-              {isAdmin ? 'Branch Stock & Inventory Portal' : 'Sold Items & Sales Records'}
-            </h1>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#3B318A] via-[#2F2770] to-slate-900 text-white p-4 sm:p-6 rounded-2xl shadow-lg">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-white/10 shrink-0 mt-0.5 sm:mt-1">
             {isAdmin ? (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-purple-500/20 text-purple-200 border border-purple-400/30 px-2.5 py-0.5 rounded-full">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Executive Stock Master
-              </span>
+              <Boxes className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300 shrink-0" />
             ) : (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-2.5 py-0.5 rounded-full">
-                <UserCheck className="w-3.5 h-3.5" />
-                Sales Representative Portal
-              </span>
+              <ShoppingBag className="w-5 h-5 sm:w-6 sm:h-6 text-emerald-300 shrink-0" />
             )}
           </div>
-          <p className="text-xs text-indigo-100 max-w-2xl">
-            {isAdmin
-              ? 'Multi-branch warehouse management for Surat, Morbi, and Rajkot. Add machine and spare part stocks, manage reorder thresholds, and adjust inventory quantities.'
-              : 'Log customer machine installations and direct spare part sales from warehouse stock. Track your personal sales history and dispatched client base.'}
-          </p>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 mb-1 flex-wrap">
+              <h1 className="text-base sm:text-2xl font-black text-white leading-snug">
+                {isAdmin ? 'Branch Stock & Inventory Portal' : 'Sold Items & Sales Records'}
+              </h1>
+              {isAdmin ? (
+                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold bg-purple-500/20 text-purple-200 border border-purple-400/30 px-2.5 py-0.5 rounded-full shrink-0">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Executive Stock Master
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-2.5 py-0.5 rounded-full shrink-0">
+                  <UserCheck className="w-3.5 h-3.5" />
+                  Sales Representative Portal
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-indigo-100 max-w-2xl leading-relaxed">
+              {isAdmin
+                ? 'Multi-branch warehouse management for Surat, Morbi, and Rajkot. Add machine and spare part stocks, manage reorder thresholds, and adjust inventory quantities.'
+                : 'Log customer machine installations and direct spare part sales from warehouse stock. Track your personal sales history and dispatched client base.'}
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2.5 shrink-0">
           {/* Admin adds stock */}
           {isAdmin ? (
             <Button
@@ -873,12 +877,12 @@ export const StockPage = () => {
       </div>
 
       {/* EXACTLY 2 MAIN WORKSPACE TABS */}
-      <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-2xl w-fit">
+      <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-2xl w-full sm:w-fit overflow-x-auto max-w-full scrollbar-none">
         {/* Tab 1: Machines */}
         <button
           type="button"
           onClick={() => setActiveTab('MACHINES')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === 'MACHINES'
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${activeTab === 'MACHINES'
             ? 'bg-[#3B318A] text-white shadow-md'
             : 'text-gray-600 hover:text-gray-900'
             }`}
@@ -895,7 +899,7 @@ export const StockPage = () => {
         <button
           type="button"
           onClick={() => setActiveTab('SPARE_PARTS')}
-          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${activeTab === 'SPARE_PARTS'
+          className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${activeTab === 'SPARE_PARTS'
             ? 'bg-[#3B318A] text-white shadow-md'
             : 'text-gray-600 hover:text-gray-900'
             }`}

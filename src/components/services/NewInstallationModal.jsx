@@ -237,7 +237,7 @@ export const NewInstallationModal = ({
           <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
             <span>Dispatch / Installation Branch Warehouse</span> <span className="text-red-500">*</span>
           </label>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             {['Surat', 'Morbi', 'Rajkot'].map((br) => {
               const { totalBranchMachines, modelQty, hasMatchedModel } = getBranchMachineInfo(br);
               const isSelected = formData.dispatchBranch === br;

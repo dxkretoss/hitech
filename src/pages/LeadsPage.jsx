@@ -412,67 +412,74 @@ export const LeadsPage = () => {
     <DataPrivacyShield currentUser={currentUser} role={role}>
       <div className="space-y-6">
         {/* Header Banner */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#3B318A] to-[#2F2770] text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
-          <div className="relative z-20">
-            <div className="flex items-center gap-2.5 mb-1">
-              <h1 className="text-2xl font-black">
-                Sales Leads & Pipeline Portal
-              </h1>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-2.5 py-0.5 rounded-full backdrop-blur-xs">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Data Privacy & Anti-Screenshot Active
-              </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#3B318A] to-[#2F2770] text-white p-4 sm:p-6 rounded-2xl shadow-lg relative overflow-hidden">
+          <div className="relative z-20 flex items-start gap-3 min-w-0">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-white/10 shrink-0 mt-0.5 sm:mt-1">
+              <Briefcase className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300 shrink-0" />
             </div>
-            <p className="text-xs text-indigo-100">
-              Logged in as <strong>{currentUser?.name || 'Sales Representative'}</strong> ({role}). Classify leads as Hot or Cold, manage conversions, and track lost opportunities.
-            </p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h1 className="text-base sm:text-2xl font-black text-white leading-snug">
+                  Sales Leads & Pipeline Portal
+                </h1>
+                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-2.5 py-0.5 rounded-full backdrop-blur-xs shrink-0">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Data Privacy Active
+                </span>
+              </div>
+              <p className="text-xs text-indigo-100 max-w-2xl leading-relaxed">
+                Logged in as <strong>{currentUser?.name || 'Sales Representative'}</strong> ({role}). Classify leads as Hot or Cold, manage conversions, and track lost opportunities.
+              </p>
+            </div>
           </div>
-          <div className="relative z-20 flex items-center gap-2.5">
-            <Button onClick={handleOpenAdd} variant="white" icon={Plus}>
+          <div className="relative z-20 flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
+            <Button onClick={handleOpenAdd} variant="white" icon={Plus} className="w-full sm:w-auto">
               Quick Add Lead
             </Button>
           </div>
         </div>
 
         {/* Main Leads Table Card */}
-        <Card className="space-y-4">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+        <Card className="p-4 sm:p-6 space-y-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3">
             <div className="relative flex-1">
               <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
               <input
                 type="text"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="Search leads by customer, company, phone, requirement, loss reason..."
-                className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
+                placeholder="Search leads by customer, company, phone, requirement..."
+                className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
               />
             </div>
 
-            {isAdmin && (
-              <select
-                value={selectedBranch}
-                onChange={(e) => setSelectedBranch(e.target.value)}
-                className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-gray-700 outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
-              >
-                <option value="ALL">All Branches</option>
-                <option value="Surat">Surat Branch</option>
-                <option value="Morbi">Morbi Branch</option>
-                <option value="Rajkot">Rajkot Branch</option>
-              </select>
-            )}
+            <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap">
+              {isAdmin && (
+                <select
+                  value={selectedBranch}
+                  onChange={(e) => setSelectedBranch(e.target.value)}
+                  className="flex-1 sm:flex-initial h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-gray-700 outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
+                >
+                  <option value="ALL">All Branches</option>
+                  <option value="Surat">Surat Branch</option>
+                  <option value="Morbi">Morbi Branch</option>
+                  <option value="Rajkot">Rajkot Branch</option>
+                </select>
+              )}
 
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-[#3B318A] outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
-            >
-              <option value="ALL">All Leads ({leads.length})</option>
-              <option value="HOT">Hot Leads ({countHot})</option>
-              <option value="COLD">Cold Leads ({countCold})</option>
-              <option value="WON">Sold / Won ({countWon})</option>
-              <option value="LOST">Lost Deals ({countLost})</option>
-              <option value="FUTURE">Future Req ({countFuture})</option>
-            </select>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="flex-1 sm:flex-initial h-[38px] px-3.5 py-1.5 text-xs font-bold border border-gray-300 rounded-xl bg-white text-[#3B318A] outline-none focus:ring-2 focus:ring-[#3B318A] cursor-pointer"
+              >
+                <option value="ALL">All Leads ({leads.length})</option>
+                <option value="HOT">Hot Leads ({countHot})</option>
+                <option value="COLD">Cold Leads ({countCold})</option>
+                <option value="WON">Sold / Won ({countWon})</option>
+                <option value="LOST">Lost Deals ({countLost})</option>
+                <option value="FUTURE">Future Req ({countFuture})</option>
+              </select>
+            </div>
           </div>
 
           {loading ? (
@@ -502,11 +509,11 @@ export const LeadsPage = () => {
               <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide">
                 <span>Select Lead Type (Urgency & Probability)</span> <span className="text-red-500">*</span>
               </label>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, leadType: 'Hot Lead' })}
-                  className={`p-3 rounded-xl border-2 flex items-center gap-3 text-left transition-all ${
+                  className={`p-3 rounded-xl border-2 flex items-center gap-3 text-left transition-all cursor-pointer ${
                     formData.leadType === 'Hot Lead'
                       ? 'border-rose-500 bg-rose-50/70 text-rose-950 shadow-sm'
                       : 'border-gray-200 bg-white hover:border-gray-300 text-gray-700'
@@ -524,7 +531,7 @@ export const LeadsPage = () => {
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, leadType: 'Cold Lead' })}
-                  className={`p-3 rounded-xl border-2 flex items-center gap-3 text-left transition-all ${
+                  className={`p-3 rounded-xl border-2 flex items-center gap-3 text-left transition-all cursor-pointer ${
                     formData.leadType === 'Cold Lead'
                       ? 'border-sky-500 bg-sky-50/70 text-sky-950 shadow-sm'
                       : 'border-gray-200 bg-white hover:border-gray-300 text-gray-700'
@@ -540,6 +547,7 @@ export const LeadsPage = () => {
                 </button>
               </div>
             </div>
+
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input

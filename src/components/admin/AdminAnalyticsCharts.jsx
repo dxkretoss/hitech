@@ -156,9 +156,9 @@ export const AdminAnalyticsCharts = ({ leads = [], customers = [], services = []
       {/* Analytics Navigation Bar */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-gray-200 pb-3">
         <div>
-          <h2 className="text-lg font-black text-gray-900 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-[#3B318A]" />
-            Business Analytics & Live Visual Performance Graphs
+          <h2 className="text-base sm:text-lg font-black text-gray-900 flex items-center gap-2">
+            <BarChart3 className="w-5 h-5 text-[#3B318A] shrink-0" />
+            <span>Business Analytics & Live Visual Performance Graphs</span>
           </h2>
           <p className="text-xs text-gray-500">
             Real-time analytics computed directly from live database records for Sales, Customer Base, and Service Operations.
@@ -166,10 +166,10 @@ export const AdminAnalyticsCharts = ({ leads = [], customers = [], services = []
         </div>
 
         {/* Tab Filters */}
-        <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl">
+        <div className="flex items-center gap-1.5 bg-gray-100 p-1 rounded-xl w-full sm:w-auto overflow-x-auto max-w-full scrollbar-none">
           <button
             onClick={() => setActiveChartTab('ALL')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeChartTab === 'ALL'
                 ? 'bg-[#3B318A] text-white shadow-xs'
                 : 'text-gray-600 hover:text-gray-900'
@@ -179,7 +179,7 @@ export const AdminAnalyticsCharts = ({ leads = [], customers = [], services = []
           </button>
           <button
             onClick={() => setActiveChartTab('SALES')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeChartTab === 'SALES'
                 ? 'bg-[#3B318A] text-white shadow-xs'
                 : 'text-gray-600 hover:text-gray-900'
@@ -189,7 +189,7 @@ export const AdminAnalyticsCharts = ({ leads = [], customers = [], services = []
           </button>
           <button
             onClick={() => setActiveChartTab('CUSTOMERS')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeChartTab === 'CUSTOMERS'
                 ? 'bg-[#3B318A] text-white shadow-xs'
                 : 'text-gray-600 hover:text-gray-900'
@@ -199,7 +199,7 @@ export const AdminAnalyticsCharts = ({ leads = [], customers = [], services = []
           </button>
           <button
             onClick={() => setActiveChartTab('SERVICES')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
               activeChartTab === 'SERVICES'
                 ? 'bg-[#3B318A] text-white shadow-xs'
                 : 'text-gray-600 hover:text-gray-900'
@@ -214,16 +214,16 @@ export const AdminAnalyticsCharts = ({ leads = [], customers = [], services = []
       {(activeChartTab === 'ALL' || activeChartTab === 'SALES') && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Bar / Trend Graph (2 cols) */}
-          <Card className="p-6 lg:col-span-2 space-y-4">
+          <Card className="p-4 sm:p-6 lg:col-span-2 space-y-4">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b pb-3 border-gray-100">
               <div>
                 <h3 className="text-sm font-black text-gray-900 flex items-center gap-2">
-                  <TrendingUp className="w-4 h-4 text-[#3B318A]" />
-                  Sales Inquiries vs. Closed Conversions (Live 6-Month Trend)
+                  <TrendingUp className="w-4 h-4 text-[#3B318A] shrink-0" />
+                  <span>Sales Inquiries vs. Closed Conversions (Live 6-Month Trend)</span>
                 </h3>
                 <p className="text-[11px] text-gray-400">Total inquiries captured by sales team vs closed deals by month</p>
               </div>
-              <div className="flex items-center gap-3 text-xs">
+              <div className="flex items-center gap-3 text-xs flex-wrap">
                 <span className="flex items-center gap-1.5 font-bold text-gray-600">
                   <span className="w-3 h-3 rounded bg-indigo-200 inline-block" /> Total Inquiries ({totalLeads})
                 </span>
@@ -234,8 +234,9 @@ export const AdminAnalyticsCharts = ({ leads = [], customers = [], services = []
             </div>
 
             {/* Interactive SVG Bar Chart */}
-            <div className="pt-2">
-              <div className="h-52 flex items-end justify-between gap-3 px-2 border-b border-gray-200">
+            <div className="pt-2 overflow-x-auto">
+              <div className="h-52 min-w-[280px] flex items-end justify-between gap-2 sm:gap-3 px-1 sm:px-2 border-b border-gray-200">
+
                 {monthlySalesData.map((d, idx) => {
                   const leadHeight = maxLeadCount > 0 ? (d.leads / maxLeadCount) * 100 : 0;
                   const wonHeight = maxLeadCount > 0 ? (d.won / maxLeadCount) * 100 : 0;
@@ -485,8 +486,8 @@ export const AdminAnalyticsCharts = ({ leads = [], customers = [], services = []
             </div>
 
             {/* Monthly Service Execution Chart */}
-            <div className="pt-2">
-              <div className="h-44 flex items-end justify-between gap-3 px-2 border-b border-gray-200">
+            <div className="pt-2 overflow-x-auto">
+              <div className="h-44 min-w-[280px] flex items-end justify-between gap-2 sm:gap-3 px-1 sm:px-2 border-b border-gray-200">
                 {serviceTrend.map((s, idx) => {
                   const schedHeight = maxServiceCount > 0 ? (s.scheduled / maxServiceCount) * 100 : 0;
                   const compHeight = maxServiceCount > 0 ? (s.completed / maxServiceCount) * 100 : 0;
@@ -515,7 +516,7 @@ export const AdminAnalyticsCharts = ({ leads = [], customers = [], services = []
             </div>
 
             {/* Service Status KPI Badges */}
-            <div className="grid grid-cols-3 gap-2.5 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
               <div className="p-2.5 rounded-xl bg-teal-50 border border-teal-100 text-center">
                 <span className="text-[10px] text-teal-700 font-bold uppercase block">Completed</span>
                 <span className="text-base font-black text-teal-900">{completedServices}</span>

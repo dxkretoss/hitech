@@ -193,30 +193,34 @@ export const CustomersPage = () => {
     <DataPrivacyShield currentUser={currentUser} role={role}>
       <div className="space-y-6">
         {/* Header Banner */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#3B318A] to-[#2F2770] text-white p-6 rounded-2xl shadow-lg">
-          <div>
-            <div className="flex items-center gap-2.5 mb-1">
-              <h1 className="text-2xl font-black flex items-center gap-2">
-                <Users className="w-6 h-6 text-indigo-300" />
-                Customer Management
-              </h1>
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-2.5 py-0.5 rounded-full backdrop-blur-xs">
-                <ShieldCheck className="w-3.5 h-3.5" />
-                Data Privacy Active
-              </span>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-[#3B318A] to-[#2F2770] text-white p-4 sm:p-6 rounded-2xl shadow-lg">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="p-2 sm:p-2.5 rounded-xl bg-white/10 shrink-0 mt-0.5 sm:mt-1">
+              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300 shrink-0" />
             </div>
-            <p className="text-xs text-indigo-100">
-              Installed machine customer registry with engineer-managed service logs, parts replacement tracking, and next service scheduling.
-            </p>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
+                <h1 className="text-base sm:text-2xl font-black text-white leading-snug">
+                  Customer Management
+                </h1>
+                <span className="inline-flex items-center gap-1 text-[10px] sm:text-[11px] font-bold bg-emerald-500/20 text-emerald-200 border border-emerald-400/30 px-2.5 py-0.5 rounded-full backdrop-blur-xs shrink-0">
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  Data Privacy Active
+                </span>
+              </div>
+              <p className="text-xs text-indigo-100 max-w-2xl leading-relaxed">
+                Installed machine customer registry with engineer-managed service logs, parts replacement tracking, and next service scheduling.
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2.5">
-            <Button onClick={handleOpenDirectSale} variant="amber" icon={ShoppingBag}>
+          <div className="flex items-center gap-2.5 shrink-0 w-full sm:w-auto">
+            <Button onClick={handleOpenDirectSale} variant="amber" icon={ShoppingBag} className="w-full sm:w-auto">
               Record Item Sale
             </Button>
           </div>
         </div>
 
-        <Card className="space-y-4">
+        <Card className="p-4 sm:p-6 space-y-4">
           <div className="relative">
             <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
@@ -224,7 +228,7 @@ export const CustomersPage = () => {
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search customers by name, company, phone, machine product..."
-              className="w-full pl-9 pr-4 py-2 text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
+              className="w-full pl-9 pr-4 py-2 text-xs sm:text-sm border border-gray-300 rounded-xl focus:ring-2 focus:ring-[#3B318A] outline-none"
             />
           </div>
 
@@ -234,6 +238,7 @@ export const CustomersPage = () => {
             <Table columns={columns} data={filteredCustomers} emptyMessage="No customers found." />
           )}
         </Card>
+
 
         {/* Record Direct Item Sale Modal */}
         <Modal isOpen={saleModalOpen} onClose={() => setSaleModalOpen(false)} title="Record Item / Equipment Sale" maxWidth="max-w-xl">

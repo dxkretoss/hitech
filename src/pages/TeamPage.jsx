@@ -196,20 +196,27 @@ export const TeamPage = () => {
   return (
     <div className="space-y-6">
       {/* Top Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 rounded-2xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-black flex items-center gap-2">
-            Team & Staff Directory
-            <Badge variant="warning">Executive Control</Badge>
-          </h1>
-          <p className="text-xs text-slate-300 mt-1">
-            Complete roster of Field Engineers & Sales Representatives, including live operational output and configurable Stock & Inventory visibility permissions.
-          </p>
+      <div className="bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-4 sm:p-6 rounded-2xl shadow-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-white/10 shrink-0 mt-0.5 sm:mt-1">
+            <Users className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-300 shrink-0" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-base sm:text-2xl font-black text-white leading-snug">
+                Team & Staff Directory
+              </h1>
+              <Badge variant="warning" className="shrink-0 text-[10px] sm:text-xs">Executive Control</Badge>
+            </div>
+            <p className="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+              Complete roster of Field Engineers & Sales Representatives, including live operational output and configurable Stock & Inventory visibility permissions.
+            </p>
+          </div>
         </div>
       </div>
 
       {/* Summary KPI Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         <Card className="border-l-4 border-l-blue-600">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase">Sales Representatives</span>
@@ -250,15 +257,15 @@ export const TeamPage = () => {
       </div>
 
       {/* Main Tabbed Staff Section */}
-      <Card className="p-6 space-y-5">
+      <Card className="p-4 sm:p-6 space-y-5">
         {/* Tab & Search Bar */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b pb-4 border-gray-100">
           {/* Tabs */}
-          <div className="flex items-center p-1 bg-slate-100 rounded-xl w-fit">
+          <div className="flex items-center p-1 bg-slate-100 rounded-xl w-full sm:w-fit overflow-x-auto max-w-full scrollbar-none gap-1">
             <button
               type="button"
               onClick={() => setActiveTab('All')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'All'
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'All'
                 ? 'bg-white text-gray-900 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
                 }`}
@@ -274,7 +281,7 @@ export const TeamPage = () => {
             <button
               type="button"
               onClick={() => setActiveTab('Sales')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'Sales'
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'Sales'
                 ? 'bg-white text-[#3B318A] shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
                 }`}
@@ -290,7 +297,7 @@ export const TeamPage = () => {
             <button
               type="button"
               onClick={() => setActiveTab('Engineer')}
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all ${activeTab === 'Engineer'
+              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 cursor-pointer ${activeTab === 'Engineer'
                 ? 'bg-white text-teal-700 shadow-sm'
                 : 'text-gray-600 hover:text-gray-900'
                 }`}
@@ -302,8 +309,6 @@ export const TeamPage = () => {
                 {fieldEngineersList.length}
               </span>
             </button>
-
-
           </div>
 
           {/* Search Box */}
@@ -318,6 +323,7 @@ export const TeamPage = () => {
             />
           </div>
         </div>
+
 
         {/* Tab Content: Render List */}
         <div className="space-y-4">

@@ -125,23 +125,27 @@ export const NotificationsPage = () => {
   return (
     <div className="space-y-6">
       {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-[#3B318A] text-white p-6 rounded-2xl shadow-lg">
-        <div>
-          <h1 className="text-2xl font-black flex items-center gap-2">
-            <Bell className="w-6 h-6 text-amber-400" />
-            Notifications & Due Date Alert Center
-          </h1>
-          <p className="text-xs text-indigo-100 mt-1 max-w-2xl">
-            {isEngineer
-              ? 'Real-time database-managed service maintenance alerts: Red Alert for equipment services due within 3 days or today, and Orange Alert for services due within 1 week.'
-              : isSales
-              ? 'Real-time database-managed sales follow-up alerts and pending client meeting reminders for your active leads.'
-              : 'Real-time database-managed alerts: Red Alert for services due within 3 days or today, Orange Alert for services due within 1 week, and pending sales follow-ups.'}
-          </p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-[#3B318A] text-white p-4 sm:p-6 rounded-2xl shadow-lg">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="p-2 sm:p-2.5 rounded-xl bg-white/10 shrink-0 mt-0.5 sm:mt-1">
+            <Bell className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400 shrink-0" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-base sm:text-2xl font-black text-white leading-snug">
+              Notifications & Due Date Alert Center
+            </h1>
+            <p className="text-xs text-indigo-100/90 mt-1 max-w-2xl leading-relaxed">
+              {isEngineer
+                ? 'Real-time database-managed service maintenance alerts: Red Alert for equipment services due within 3 days or today, and Orange Alert for services due within 1 week.'
+                : isSales
+                ? 'Real-time database-managed sales follow-up alerts and pending client meeting reminders for your active leads.'
+                : 'Real-time database-managed alerts: Red Alert for services due within 3 days or today, Orange Alert for services due within 1 week, and pending sales follow-ups.'}
+            </p>
+          </div>
         </div>
 
         {notifications.length > 0 && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
             {unreadCount > 0 && (
               <Button
                 type="button"
@@ -167,9 +171,10 @@ export const NotificationsPage = () => {
       </div>
 
       {/* Quick Alert Filter Pills */}
-      <div className={`grid gap-3 ${
-        isEngineer ? 'grid-cols-2 sm:grid-cols-4' : isSales ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-5'
+      <div className={`grid gap-2.5 sm:gap-3 ${
+        isEngineer ? 'grid-cols-2 sm:grid-cols-4' : isSales ? 'grid-cols-1 xs:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
       }`}>
+
         <button
           type="button"
           onClick={() => setFilterType('ALL')}

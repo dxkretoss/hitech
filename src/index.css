@@ -105,3 +105,13 @@
   right: 0 !important;
   transform: translate(35%, -35%) !important;
 }
+
+/* Hide scrollbars for clean mobile tab bars */
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+

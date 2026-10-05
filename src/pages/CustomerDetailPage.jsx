@@ -95,22 +95,22 @@ export const CustomerDetailPage = () => {
       </button>
 
       {/* Header Info */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-gray-200 shadow-xs">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-6 rounded-2xl border border-gray-200 shadow-xs">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black text-gray-900">{customer.company}</h1>
+          <div className="flex items-center gap-2 flex-wrap">
+            <h1 className="text-xl sm:text-2xl font-black text-gray-900">{customer.company}</h1>
             <Badge variant="primary">Customer 360</Badge>
           </div>
-          <p className="text-sm font-semibold text-gray-600 mt-1">
+          <p className="text-xs sm:text-sm font-semibold text-gray-600 mt-1">
             Contact: {customer.customerName} ({customer.phone})
           </p>
           <p className="text-xs text-gray-400 mt-0.5">{customer.address}</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         {/* Customer Information Card */}
-        <Card className="space-y-4">
+        <Card className="p-4 sm:p-6 space-y-4">
           <h3 className="text-sm font-bold text-gray-900 border-b pb-2 border-gray-100 uppercase tracking-wider">
             Customer Details
           </h3>

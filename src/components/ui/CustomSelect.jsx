@@ -116,14 +116,18 @@ export const CustomSelect = ({
       shouldOpenUpward ? Math.max(180, spaceAbove - 20) : Math.max(180, spaceBelow - 20)
     );
 
+    const safeWidth = Math.min(rect.width, window.innerWidth - 16);
+    const safeLeft = Math.max(8, Math.min(rect.left, window.innerWidth - safeWidth - 8));
+
     setDropdownCoords({
       top: shouldOpenUpward ? rect.top - 6 : rect.bottom + 6,
-      left: rect.left,
-      width: rect.width,
+      left: safeLeft,
+      width: safeWidth,
       openUpward: shouldOpenUpward,
       maxHeight: computedMaxHeight
     });
   };
+
 
   useEffect(() => {
     if (isOpen) {

@@ -553,9 +553,9 @@ export const TeamMemberDetailPage = () => {
       </button>
 
       {/* Member Hero Profile Banner */}
-      <div className="bg-gradient-to-r from-[#3B318A] via-[#2D2570] to-slate-900 text-white p-6 sm:p-7 rounded-3xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-6">
-        <div className="flex items-center gap-4">
-          <div className={`w-16 h-16 rounded-2xl font-black text-2xl flex items-center justify-center shrink-0 border-2 shadow-inner ${
+      <div className="bg-gradient-to-r from-[#3B318A] via-[#2D2570] to-slate-900 text-white p-4 sm:p-6 sm:p-7 rounded-3xl shadow-lg flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl font-black text-xl sm:text-2xl flex items-center justify-center shrink-0 border-2 shadow-inner ${
             isSales ? 'bg-indigo-600/80 text-white border-indigo-400' :
             isEng ? 'bg-teal-600/80 text-white border-teal-400' :
             'bg-purple-600/80 text-white border-purple-400'
@@ -564,8 +564,8 @@ export const TeamMemberDetailPage = () => {
           </div>
 
           <div className="space-y-1">
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-2xl font-black text-white">{member.name}</h1>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h1 className="text-xl sm:text-2xl font-black text-white">{member.name}</h1>
               <span className={`px-2.5 py-0.5 rounded-full text-xs font-black uppercase tracking-wider ${
                 isSales ? 'bg-indigo-500/30 text-indigo-200 border border-indigo-400/40' :
                 isEng ? 'bg-teal-500/30 text-teal-200 border border-teal-400/40' :
@@ -579,14 +579,14 @@ export const TeamMemberDetailPage = () => {
               </span>
             </div>
 
-            <div className="flex items-center gap-4 text-xs text-indigo-100 pt-1">
+            <div className="flex items-center gap-3 sm:gap-4 text-xs text-indigo-100 pt-1 flex-wrap">
               <span className="flex items-center gap-1.5 font-mono">
-                <Mail className="w-3.5 h-3.5 text-indigo-300" />
-                {member.email}
+                <Mail className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
+                <span className="truncate max-w-[200px] sm:max-w-none">{member.email}</span>
               </span>
               {member.phone && (
                 <span className="flex items-center gap-1.5 font-mono">
-                  <Phone className="w-3.5 h-3.5 text-indigo-300" />
+                  <Phone className="w-3.5 h-3.5 text-indigo-300 shrink-0" />
                   {member.phone}
                 </span>
               )}
@@ -595,7 +595,7 @@ export const TeamMemberDetailPage = () => {
         </div>
 
         {/* Stock Access Permission Widget */}
-        <div className="flex items-center gap-3 bg-white/10 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/20 shrink-0">
+        <div className="flex items-center justify-between sm:justify-start gap-3 bg-white/10 backdrop-blur-md px-4 py-3 rounded-2xl border border-white/20 shrink-0">
           <div className="space-y-0.5">
             <span className="text-[11px] font-bold text-indigo-200 block uppercase tracking-wider">
               Warehouse Stock Access
@@ -620,7 +620,7 @@ export const TeamMemberDetailPage = () => {
       {/* ======================================================== */}
       {/* KPI METRICS OVERVIEW CARDS                               */}
       {/* ======================================================== */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5 sm:gap-4">
         {isSales ? (
           <>
             <Card className="p-4 bg-indigo-50/60 border border-indigo-100">
@@ -707,13 +707,13 @@ export const TeamMemberDetailPage = () => {
       {/* ======================================================== */}
       {/* WORKSPACE TABS                                           */}
       {/* ======================================================== */}
-      <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-2xl w-fit">
+      <div className="flex items-center gap-2 bg-gray-100 p-1.5 rounded-2xl w-full sm:w-fit overflow-x-auto max-w-full scrollbar-none">
         {isSales ? (
           <>
             <button
               type="button"
               onClick={() => setActiveTab('LEADS')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'LEADS'
                   ? 'bg-[#3B318A] text-white shadow-md'
                   : 'text-gray-600 hover:text-gray-900'
@@ -731,7 +731,7 @@ export const TeamMemberDetailPage = () => {
             <button
               type="button"
               onClick={() => setActiveTab('SOLD_ITEMS')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'SOLD_ITEMS'
                   ? 'bg-[#3B318A] text-white shadow-md'
                   : 'text-gray-600 hover:text-gray-900'
@@ -749,7 +749,7 @@ export const TeamMemberDetailPage = () => {
             <button
               type="button"
               onClick={() => setActiveTab('FUTURE_OPPS')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'FUTURE_OPPS'
                   ? 'bg-[#3B318A] text-white shadow-md'
                   : 'text-gray-600 hover:text-gray-900'
@@ -769,12 +769,13 @@ export const TeamMemberDetailPage = () => {
             <button
               type="button"
               onClick={() => setActiveTab('SERVICES')}
-              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer ${
+              className={`px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
                 activeTab === 'SERVICES'
                   ? 'bg-[#3B318A] text-white shadow-md'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
+
               <Wrench className="w-4 h-4" />
               <span>Assigned Services & Maintenance</span>
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
