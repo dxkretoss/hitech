@@ -9,7 +9,8 @@ import {
   Wrench,
   TrendingUp,
   UserCheck,
-  Sparkles
+  Sparkles,
+  ShieldCheck
 } from 'lucide-react';
 
 export const AdminDashboardPage = () => {
