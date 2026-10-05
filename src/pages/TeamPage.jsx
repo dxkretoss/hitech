@@ -64,7 +64,12 @@ export const TeamPage = () => {
       db.getStockItems()
     ]);
 
-    setStaffList(profilesData || []);
+    // Only display actual field staff (Sales Representatives and Field Engineers)
+    const teamMembersOnly = (profilesData || []).filter(
+      p => p.role !== 'Admin' && p.role !== 'Owner' && p.role !== 'SuperAdmin'
+    );
+
+    setStaffList(teamMembersOnly);
     setLeads(leadsData || []);
     setFutureOpps(oppsData || []);
     setCustomers(custsData || []);

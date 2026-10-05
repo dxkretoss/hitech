@@ -24,7 +24,8 @@ import {
   XCircle,
   ShieldCheck,
   Calendar,
-  AlertCircle
+  AlertCircle,
+  Briefcase
 } from 'lucide-react';
 import { toast } from 'sonner';
 
