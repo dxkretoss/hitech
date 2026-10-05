@@ -172,7 +172,7 @@ export const NotificationsPage = () => {
 
       {/* Quick Alert Filter Pills */}
       <div className={`grid gap-2.5 sm:gap-3 ${
-        isEngineer ? 'grid-cols-2 sm:grid-cols-4' : isSales ? 'grid-cols-1 xs:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
+        isEngineer ? 'grid-cols-2 sm:grid-cols-4' : isSales ? 'grid-cols-1 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5'
       }`}>
 
         <button

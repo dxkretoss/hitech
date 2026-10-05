@@ -80,7 +80,7 @@ export const Header = ({ onOpenSidebar }) => {
       <div className="flex items-center gap-2 sm:gap-3">
         <Badge variant="primary" className="flex items-center gap-1 text-[11px] sm:text-xs py-1 px-2 sm:px-2.5">
           <Building2 className="w-3 h-3 text-indigo-300 shrink-0" />
-          <span className="hidden xs:inline sm:inline">{userBranch} Branch • </span>
+          <span className="hidden sm:inline">{userBranch} Branch • </span>
           <span>{role}</span>
         </Badge>
 
